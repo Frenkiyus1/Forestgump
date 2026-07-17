@@ -21,8 +21,8 @@
 	const path = $derived(page.url.pathname);
 	let mobileOpen = $state(false);
 
-	type NavIcon = 'overview' | 'locations' | 'alerts';
-	type NavHref = '/' | '/locations' | '/alerts';
+	type NavIcon = 'overview' | 'locations' | 'map' | 'alerts';
+	type NavHref = '/' | '/locations' | '/map' | '/alerts';
 	type NavItem = { label: string; href: NavHref; icon: NavIcon; active: boolean };
 
 	const nav = $derived<NavItem[]>([
@@ -33,6 +33,7 @@
 			icon: 'locations',
 			active: path.startsWith('/locations')
 		},
+		{ label: 'Bản đồ', href: '/map', icon: 'map', active: path.startsWith('/map') },
 		{ label: 'Cảnh báo', href: '/alerts', icon: 'alerts', active: path.startsWith('/alerts') }
 	]);
 
@@ -60,6 +61,8 @@
 				cy="10"
 				r="2.5"
 			/>
+		{:else if name === 'map'}
+			<path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3Z" /><path d="M9 3v15M15 6v15" />
 		{:else if name === 'alerts'}
 			<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" />
 		{/if}
