@@ -38,6 +38,47 @@ export const historyQuerySchema = z.strictObject({
   to: dateString,
 });
 
+/**
+ * Phản hồi dự báo 7 ngày từ Open-Meteo (endpoint /v1/forecast).
+ * Dùng z.object (KHÔNG strict) vì đây là API bên thứ 3 ta không kiểm soát —
+ * Open-Meteo có thể thêm field mới bất kỳ lúc nào, strictObject sẽ vỡ khi đó.
+ */
+export const openMeteoForecastSchema = z.object({
+  current: z.object({
+    temperature_2m: z.number(),
+  }),
+  daily: z.object({
+    time: z.array(z.string()),
+    temperature_2m_max: z.array(z.number()),
+    temperature_2m_min: z.array(z.number()),
+    precipitation_sum: z.array(z.number()),
+    relative_humidity_2m_mean: z.array(z.number()),
+    dew_point_2m_mean: z.array(z.number()),
+    wind_speed_10m_mean: z.array(z.number()),
+  }),
+});
+
+/**
+ * Phản hồi dự báo 5 ngày/3 giờ từ OpenWeatherMap (endpoint /data/2.5/forecast),
+ * dùng làm nguồn đối chiếu/dự phòng. Cũng dùng z.object không strict vì là API
+ * bên thứ 3. Chỉ khai báo các field thực sự dùng tới.
+ */
+export const openWeatherMapForecastSchema = z.object({
+  list: z.array(
+    z.object({
+      dt_txt: z.string(),
+      main: z.object({
+        temp: z.number(),
+        humidity: z.number(),
+      }),
+      wind: z.object({
+        speed: z.number(),
+      }),
+      rain: z.object({ '3h': z.number() }).partial().optional(),
+    })
+  ),
+});
+
 /** Một lượt hội thoại (user hỏi / model trả lời). */
 export const chatTurnSchema = z.strictObject({
   role: z.enum(['user', 'model']),
