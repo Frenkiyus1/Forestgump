@@ -14,16 +14,7 @@
 	const path = $derived(page.url.pathname);
 	let mobileOpen = $state(false);
 
-	// fade the sticky search pill as the page scrolls so it doesn't clash
-	// with content underneath; clear at the very top, faint once scrolled.
-	let scrollY = $state(0);
-	$effect(() => {
-		const onScroll = () => (scrollY = window.scrollY);
-		onScroll();
-		window.addEventListener('scroll', onScroll, { passive: true });
-		return () => window.removeEventListener('scroll', onScroll);
-	});
-	const searchOpacity = $derived(Math.max(0.1, 1 - scrollY / 90));
+
 
 	type NavIcon = 'overview' | 'stations' | 'map' | 'alerts' | 'reports';
 	type NavHref = '/' | '/stations' | '/map' | '/alerts' | '/reports';
@@ -253,22 +244,7 @@
 						<path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="round" />
 					</svg>
 				</button>
-				<div
-					style="--so: {searchOpacity}"
-					class="flex items-center gap-2 rounded-full border border-gray-200/70 bg-white/70 px-3.5 py-1.5 opacity-[var(--so)] backdrop-blur-sm transition-opacity duration-200 hover:opacity-100"
-				>
-					<svg
-						viewBox="0 0 24 24"
-						class="h-4 w-4 text-gray-400"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						aria-hidden="true"
-					>
-						<circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" stroke-linecap="round" />
-					</svg>
-					<span class="text-sm text-gray-400">Search stations…</span>
-				</div>
+
 			</div>
 		</header>
 
