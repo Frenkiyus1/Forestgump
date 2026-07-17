@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
-body {
-	background-color: #f8fafc; /* slate-50 */
+@theme {
+	--color-cream: #fbf9f4;
+	--color-card: #ffffff;
+	--color-accent: #1e6f5c;
+	--color-accent-soft: #d9efe9;
 }
