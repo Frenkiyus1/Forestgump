@@ -1,9 +1,5 @@
 @import 'tailwindcss';
-@plugin '@tailwindcss/typography';
 
-@theme {
-	--color-cream: #fbf9f4;
-	--color-card: #ffffff;
-	--color-accent: #f59e0b;
-	--color-accent-soft: #fde9c8;
+body {
+	background-color: #f8fafc; /* slate-50 */
 }
