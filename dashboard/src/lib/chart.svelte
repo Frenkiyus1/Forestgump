@@ -1,9 +1,18 @@
 <script lang="ts">
 	import uPlot from 'uplot';
 	import 'uplot/dist/uPlot.min.css';
-	import type { HistoryPoint } from './types';
 
-	let { history }: { history: HistoryPoint[] } = $props();
+	interface Point {
+		ts: string; // ISO date/time
+		value: number;
+	}
+
+	let {
+		points,
+		label = 'Giá trị',
+		unit = '',
+		color = '#1e6f5c'
+	}: { points: Point[]; label?: string; unit?: string; color?: string } = $props();
 
 	let wrap = $state<HTMLDivElement>();
 	const HEIGHT = 240;
@@ -12,8 +21,8 @@
 		const el = wrap;
 		if (!el) return;
 
-		const xs = history.map((h) => new Date(h.ts).getTime() / 1000);
-		const ys = history.map((h) => h.ec);
+		const xs = points.map((p) => new Date(p.ts).getTime() / 1000);
+		const ys = points.map((p) => p.value);
 
 		// Tooltip tự vẽ tay: gắn thẳng vào lớp overlay của uPlot (u.over) nên
 		// cursor.left/top dùng được luôn, không phải cộng bù offset trục.
@@ -37,13 +46,11 @@
 							tip.style.display = 'none';
 							return;
 						}
-						const time = new Date(x * 1000).toLocaleString('vi-VN', {
+						const time = new Date(x * 1000).toLocaleDateString('vi-VN', {
 							day: '2-digit',
-							month: '2-digit',
-							hour: '2-digit',
-							minute: '2-digit'
+							month: '2-digit'
 						});
-						tip.innerHTML = `<p class="font-semibold text-gray-900">${y.toFixed(2)} g/L</p><p class="text-gray-400">${time}</p>`;
+						tip.innerHTML = `<p class="font-semibold text-gray-900">${y.toFixed(1)}${unit}</p><p class="text-gray-400">${time}</p>`;
 						tip.style.left = `${u.cursor.left}px`;
 						tip.style.top = `${u.cursor.top ?? 0}px`;
 						tip.style.display = 'block';
@@ -53,10 +60,10 @@
 			series: [
 				{},
 				{
-					label: 'EC (g/L)',
-					stroke: '#f59e0b',
+					label: `${label}${unit ? ` (${unit})` : ''}`,
+					stroke: color,
 					width: 2.5,
-					fill: 'rgba(245,158,11,0.14)',
+					fill: `${color}24`,
 					points: { show: false }
 				}
 			],

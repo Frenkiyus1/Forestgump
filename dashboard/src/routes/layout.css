@@ -1,9 +1,8 @@
 @import 'tailwindcss';
-@plugin '@tailwindcss/typography';
 
 @theme {
 	--color-cream: #fbf9f4;
 	--color-card: #ffffff;
-	--color-accent: #f59e0b;
-	--color-accent-soft: #fde9c8;
+	--color-accent: #1e6f5c;
+	--color-accent-soft: #d9efe9;
 }
