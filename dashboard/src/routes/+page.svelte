@@ -1,94 +1,96 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import type { StationView } from '$lib/types';
-	import { fetchDashboardViews } from '$lib/api';
-	import AppShell from '$lib/components/app-shell.svelte';
-	import HomeHero from '$lib/components/home/home-hero.svelte';
-	import HomeKpiRow from '$lib/components/home/home-kpi-row.svelte';
-	import HomeTrendChart from '$lib/components/home/home-trend-chart.svelte';
-	import HomeStationsTable from '$lib/components/home/home-stations-table.svelte';
-	import HomeAlerts from '$lib/components/home/home-alerts.svelte';
+	import type { Bulletin, Forecast } from '$lib/types';
+	import { LOCATIONS } from '$lib/locations';
+	import { getForecast } from '$lib/weather';
+	import { generateBulletin } from '$lib/bulletin';
+	import LocationPicker from '$lib/components/location-picker.svelte';
+	import LanguageToggle from '$lib/components/language-toggle.svelte';
+	import AlertBanner from '$lib/components/alert-banner.svelte';
+	import AlertBannerSkeleton from '$lib/components/alert-banner-skeleton.svelte';
+	import ForecastWeek from '$lib/components/forecast-week.svelte';
+	import ForecastWeekSkeleton from '$lib/components/forecast-week-skeleton.svelte';
+	import ErrorState from '$lib/components/error-state.svelte';
 
-	type Alert = 'green' | 'yellow' | 'red';
-	type Row = { name: string; ec: number; forecast: number; level: number; alert: Alert };
+	let selectedId = $state(LOCATIONS[0].id);
+	let lang = $state<Bulletin['lang']>('vi');
 
-	let { data }: { data: PageData } = $props();
+	let forecast = $state<Forecast | null>(null);
+	let forecastLoading = $state(true);
+	let forecastError = $state<string | null>(null);
 
-	// Latest poll result; falls back to the server-loaded data until the first poll.
-	let polled = $state<StationView[] | null>(null);
-	const views = $derived(polled ?? data.views);
+	let bulletin = $state<Bulletin | null>(null);
+	let bulletinLoading = $state(true);
+	let bulletinError = $state<string | null>(null);
 
-	// TẠM: poll mỗi 3s cho demo (khớp chu kỳ gửi telemetry firmware) - tăng lại
-	// (vd 60s) khi không cần cập nhật gần-tức-thời nữa. Giữ nguyên `polled` nếu
-	// lần poll bị lỗi (mất mạng tạm thời) thay vì xoá dữ liệu đang hiển thị.
+	async function loadForecast(locationId: string) {
+		forecastLoading = true;
+		forecastError = null;
+		forecast = null;
+		bulletin = null;
+		try {
+			forecast = await getForecast(locationId);
+		} catch (err) {
+			forecastError = err instanceof Error ? err.message : 'Lỗi không xác định';
+		} finally {
+			forecastLoading = false;
+		}
+	}
+
+	async function loadBulletin(f: Forecast, l: Bulletin['lang']) {
+		bulletinLoading = true;
+		bulletinError = null;
+		try {
+			bulletin = await generateBulletin(f, l);
+		} catch (err) {
+			bulletinError = err instanceof Error ? err.message : 'Lỗi không xác định';
+		} finally {
+			bulletinLoading = false;
+		}
+	}
+
+	// Tải lại forecast mỗi khi đổi khu vực.
 	$effect(() => {
-		const id = setInterval(async () => {
-			try {
-				polled = await fetchDashboardViews(fetch);
-			} catch (err) {
-				console.warn('[overview] poll failed, keeping last known data:', err);
-			}
-		}, 3000);
-		return () => clearInterval(id);
+		loadForecast(selectedId);
 	});
 
-	// Fallback data so the page always renders rich while the API returns mocks/errors.
-	const MOCK_STATIONS: Row[] = [
-		{ name: 'Lạch Tray', ec: 4.6, forecast: 5.0, level: 1.9, alert: 'red' },
-		{ name: 'Bạch Đằng', ec: 2.3, forecast: 2.8, level: 1.6, alert: 'yellow' },
-		{ name: 'Cấm', ec: 1.4, forecast: 1.7, level: 1.4, alert: 'yellow' },
-		{ name: 'Văn Úc', ec: 0.6, forecast: 0.8, level: 1.2, alert: 'green' },
-		{ name: 'Đá Bạc', ec: 0.4, forecast: 0.5, level: 1.1, alert: 'green' }
-	];
-
-	const liveStations = $derived(
-		views
-			.filter((v) => v.reading !== null)
-			.map((v) => ({
-				name: v.station.name,
-				ec: v.reading!.ec,
-				forecast: v.reading!.forecast_24h,
-				level: v.reading!.level,
-				alert: v.reading!.alert
-			}))
-	);
-	const stations = $derived<Row[]>(liveStations.length ? liveStations : MOCK_STATIONS);
-
-	const total = $derived(stations.length);
-	const greenCount = $derived(stations.filter((s) => s.alert === 'green').length);
-	const atRisk = $derived(stations.filter((s) => s.alert !== 'green').length);
-	const safePct = $derived(total === 0 ? 0 : Math.round((greenCount / total) * 100));
-	const peak = $derived(stations.length ? Math.max(...stations.map((s) => s.forecast)) : 0);
-	const avgLevel = $derived(
-		stations.length ? stations.reduce((a, s) => a + s.level, 0) / stations.length : 0
-	);
-
-	const alerts = $derived(
-		stations
-			.filter((s) => s.alert !== 'green')
-			.map((s) => ({
-				station: s.name,
-				level: s.alert,
-				text:
-					s.alert === 'red'
-						? 'Exceeded 4 g/L — close the gates'
-						: 'Approaching the caution threshold'
-			}))
-	);
+	// Tải lại bulletin mỗi khi có forecast mới hoặc đổi ngôn ngữ.
+	$effect(() => {
+		if (forecast) loadBulletin(forecast, lang);
+	});
 </script>
 
-<svelte:head><title>Overview — SaliGuard</title></svelte:head>
+<svelte:head><title>Cảnh báo thời tiết Điện Biên</title></svelte:head>
 
-<AppShell>
-	{#if data.error}
-		<p class="mb-6 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
-			Showing sample data — live API unavailable ({data.error}).
-		</p>
+<main class="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
+	<header class="flex flex-col gap-1">
+		<h1 class="text-xl font-extrabold text-slate-900 sm:text-2xl">Cảnh báo thời tiết Điện Biên</h1>
+		<p class="text-sm text-slate-500">Dữ liệu → Dự báo → Ngưỡng → Cảnh báo → Hành động</p>
+	</header>
+
+	<LocationPicker locations={LOCATIONS} {selectedId} onSelect={(id) => (selectedId = id)} />
+
+	<div class="flex justify-end">
+		<LanguageToggle {lang} onChange={(l) => (lang = l)} />
+	</div>
+
+	{#if forecastLoading}
+		<AlertBannerSkeleton />
+		<ForecastWeekSkeleton />
+	{:else if forecastError}
+		<ErrorState message={forecastError} onRetry={() => loadForecast(selectedId)} />
+	{:else if forecast}
+		<AlertBanner alert={forecast.alert} {bulletin} {bulletinLoading} />
+
+		{#if bulletinError}
+			<ErrorState
+				message={bulletinError}
+				onRetry={() => forecast && loadBulletin(forecast, lang)}
+			/>
+		{/if}
+
+		<section class="flex flex-col gap-3">
+			<h2 class="text-sm font-bold tracking-wide text-slate-500 uppercase">Dự báo 7 ngày</h2>
+			<ForecastWeek daily={forecast.daily} />
+		</section>
 	{/if}
-
-	<HomeHero {total} />
-	<HomeKpiRow {greenCount} {total} {safePct} {atRisk} {peak} {avgLevel} {stations} />
-	<HomeTrendChart />
-	<HomeStationsTable {stations} />
-	<HomeAlerts {alerts} />
-</AppShell>
+</main>
