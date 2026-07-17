@@ -5,6 +5,7 @@
 	import { clsx } from '$lib/clsx';
 	import logo from '$lib/assets/logo.png';
 	import LanguageToggle from './language-toggle.svelte';
+	import VersionSwitcher from './version-switcher.svelte';
 	import type { Bulletin } from '$lib/types';
 
 	let {
@@ -154,7 +155,8 @@
 						<path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="round" />
 					</svg>
 				</button>
-				<div class="ml-auto">
+				<div class="ml-auto flex items-center gap-2">
+					<VersionSwitcher />
 					{#if onLangChange}
 						<LanguageToggle {lang} onChange={onLangChange} />
 					{/if}
