@@ -15,6 +15,7 @@ import { mockLatest, mockHistory, mockAlerts, mockDetail } from './mock.js';
 import { classifyAlert, trendOf, type AlertLevel } from './alert.js';
 import { stationQuerySchema, historyQuerySchema, chatBodySchema } from './schemas.js';
 import { askChat, ChatUnavailableError } from './chat.js';
+import { fetchAllLocationsForecast } from './weather-ingest.js';
 
 /**
  * Mã trạm DUY NHẤT gắn phần cứng thật (ESP32). Trạm này lấy dữ liệu từ DB;
@@ -240,6 +241,21 @@ app.get('/api/alerts', async (_req: Request, res: Response) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[API] /api/alerts failed:', message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/weather-raw - dữ liệu ingest thô (dự báo 7 ngày) cho 3 địa điểm
+// demo Điện Biên, gọi trực tiếp Open-Meteo (tự fallback OpenWeatherMap nếu
+// lỗi). Dùng để kiểm tra bằng tay pipeline ingest — CHƯA áp dụng phân loại
+// cảnh báo (xem alert-dienbien.ts cho bước đó).
+app.get('/api/weather-raw', async (_req: Request, res: Response) => {
+  try {
+    const results = await fetchAllLocationsForecast();
+    res.json(results);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API] /api/weather-raw failed:', message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
