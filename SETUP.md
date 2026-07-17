@@ -113,3 +113,21 @@ engine phía sau. Đăng nhập bằng tài khoản demo trong `dashboard/src/li
 3. Sửa `backend/.env` cho khớp user/password/port Postgres bạn vừa tạo.
 4. MQTT broker là tùy chọn — không có broker, backend chỉ log `[MQTT] Connection error` liên tục,
    không ảnh hưởng dashboard.
+
+## 7. Chạy song song bản ForestGump cũ để đối chiếu (dành cho demo/giám khảo)
+
+Nút **"Phiên bản"** trên thanh trên cùng của ForestGump mở ra link sang bản ForestGump gốc (giao
+diện mặn hoá cũ, tag git `forestgump-legacy`), chạy độc lập ở cổng **5174** qua `git worktree` —
+không đụng tới code/build của ForestGump:
+
+```bash
+# Chỉ cần làm 1 lần
+git worktree add ../tesssst-legacy forestgump-legacy
+cd ../tesssst-legacy/dashboard
+pnpm install
+
+# Mỗi lần muốn đối chiếu, chạy ở cổng 5174 (ForestGump vẫn ở 5173)
+pnpm dev -- --port 5174
+```
+
+Sau đó mở ForestGump ở `:5173`, bấm nút "Phiên bản" → "ForestGump (cũ)" để mở tab mới sang `:5174`.
