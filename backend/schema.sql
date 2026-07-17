@@ -70,3 +70,23 @@ SELECT create_hypertable('telemetry', 'time', if_not_exists => TRUE);
 -- Index hỗ trợ truy vấn dữ liệu mới nhất theo từng trạm.
 CREATE INDEX IF NOT EXISTS idx_telemetry_station_time
     ON telemetry (station_id, time DESC);
+
+-- Bảng dự báo thời tiết Điện Biên (pivot rét đậm/rét hại, mưa lớn/lũ quét,
+-- sương mù). Mỗi dòng là dự báo 1 ngày cho 1 địa điểm từ 1 nguồn dữ liệu
+-- (open-meteo | openweathermap) — xem backend/src/weather-types.ts và
+-- backend/src/config/locations.ts. Không phải hypertable: đây là "ảnh chụp"
+-- dự báo mới nhất theo (địa điểm, ngày, nguồn), không phải chuỗi cảm biến
+-- liên tục như `telemetry`.
+CREATE TABLE IF NOT EXISTS weather_forecast (
+    location_code    TEXT        NOT NULL, -- khớp locations.ts (vd. 'dbp', 'tua-chua', 'muong-nhe')
+    forecast_date    DATE        NOT NULL,
+    source           TEXT        NOT NULL DEFAULT 'open-meteo', -- 'open-meteo' | 'openweathermap'
+    temp_min_c       REAL,
+    temp_max_c       REAL,
+    precipitation_mm REAL,
+    humidity_pct     REAL,
+    dew_point_c      REAL,
+    wind_speed_kmh   REAL,
+    fetched_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (location_code, forecast_date, source)
+);
