@@ -1,0 +1,46 @@
+# SaliGuard - Hạ tầng phát triển local (DB + MQTT Broker).
+#
+#   docker compose up -d       # khởi động nền
+#   docker compose ps          # xem trạng thái
+#   docker compose logs -f db  # xem log database
+#   docker compose down        # dừng (giữ dữ liệu)
+#   docker compose down -v     # dừng + XOÁ sạch dữ liệu (chạy lại schema từ đầu)
+#
+# Giá trị user/password/db phải khớp backend/.env.
+
+services:
+  # --- PostgreSQL + TimescaleDB ---
+  db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: saliguard-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: saliguard
+    ports:
+      - "5432:5432"
+    volumes:
+      # Lưu dữ liệu bền vững giữa các lần khởi động.
+      - db-data:/var/lib/postgresql/data
+      # File trong thư mục này được tự chạy KHI container khởi tạo lần ĐẦU
+      # (chỉ khi volume db-data còn trống). Nạp sẵn schema cho mình.
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d saliguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- Mosquitto MQTT Broker ---
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: saliguard-mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+volumes:
+  db-data:

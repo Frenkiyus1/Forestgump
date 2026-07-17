@@ -1,0 +1,8 @@
+# Reverse proxy + HTTPS tự động (Let's Encrypt) cho REST API của backend.
+# {$API_DOMAIN} đọc từ biến môi trường (vd: api.saliguard.example.com).
+# Caddy tự xin và gia hạn chứng chỉ TLS cho domain này.
+
+{$API_DOMAIN} {
+	encode gzip
+	reverse_proxy backend:3000
+}

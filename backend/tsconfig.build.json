@@ -1,0 +1,11 @@
+{
+  // Cấu hình dùng cho lệnh build (npm run build): biên dịch ra ./dist,
+  // loại trừ các file test khỏi sản phẩm phát hành.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}
