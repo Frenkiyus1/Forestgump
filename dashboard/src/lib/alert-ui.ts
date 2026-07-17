@@ -1,13 +1,13 @@
-import type { AlertLevel } from './types';
+import type { AlertLevel, AlertType } from './types';
 
 // Always pair colour with a text label — never colour alone.
 export const ALERT_LABEL: Record<AlertLevel, string> = {
-	green: 'Safe',
-	yellow: 'Caution',
-	red: 'Danger'
+	green: 'An toàn',
+	yellow: 'Cảnh báo',
+	red: 'Nguy hiểm'
 };
 
-// Solid strip / dot colours per claude.md (green-500, yellow-500, red-600).
+// Solid strip / dot colours.
 export const ALERT_STRIP: Record<AlertLevel, string> = {
 	green: 'bg-green-500',
 	yellow: 'bg-yellow-500',
@@ -28,38 +28,24 @@ export const ALERT_HEX: Record<AlertLevel, string> = {
 	red: '#dc2626'
 };
 
-// Lời khuyên hành động theo mức cảnh báo — hiện dạng quote trên trang chi tiết trạm.
-export const ALERT_ADVICE: Record<AlertLevel, { quote: string; source: string }> = {
-	green: {
-		quote:
-			'Continue irrigating, but keep monitoring salinity because conditions can change quickly during high tide.',
-		source: 'Nguyễn Hữu Thiện'
-	},
-	yellow: {
-		quote: 'Store as much freshwater as possible and check salinity before every irrigation.',
-		source: 'Bộ Nông nghiệp và Môi trường về ứng phó xâm nhập mặn'
-	},
-	red: {
-		quote:
-			'Stop taking irrigation water immediately and close sluice gates until salinity returns to a safe level.',
-		source: 'Đỗ Văn Duy và cộng sự'
-	}
+export const HAZARD_LABEL: Record<Exclude<AlertType, null>, string> = {
+	'lu-quet': 'Lũ quét',
+	'bang-gia': 'Băng giá',
+	'suong-mu': 'Sương mù dày'
 };
 
-// Salinity thresholds: < 1 safe, 1–4 caution, > 4 danger (g/L).
-export function alertFor(ec: number): AlertLevel {
-	if (ec > 4) return 'red';
-	if (ec >= 1) return 'yellow';
-	return 'green';
-}
+// TODO(teammate): nguồn ngưỡng thật cho từng loại hình thái nguy hiểm cần lấy từ
+// Ban chỉ huy PCTT tỉnh Điện Biên / QCVN khí tượng thủy văn hiện hành — số liệu
+// mock trong `mock.ts` là placeholder tạm thời, PHẢI thay trước khi trình bày
+// với Domain Expert judge.
 
 export function relativeTime(iso: string): string {
 	const diffMs = Date.now() - new Date(iso).getTime();
 	const min = Math.round(diffMs / 60_000);
-	if (min < 1) return 'just now';
-	if (min < 60) return `${min} min ago`;
+	if (min < 1) return 'vừa xong';
+	if (min < 60) return `${min} phút trước`;
 	const hr = Math.round(min / 60);
-	if (hr < 24) return `${hr} hr ago`;
+	if (hr < 24) return `${hr} giờ trước`;
 	const day = Math.round(hr / 24);
-	return `${day} day${day > 1 ? 's' : ''} ago`;
+	return `${day} ngày trước`;
 }

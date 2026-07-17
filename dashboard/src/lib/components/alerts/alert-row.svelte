@@ -2,16 +2,16 @@
 	import { resolve } from '$app/paths';
 	import { clsx } from '$lib/clsx';
 	import { ALERT_LABEL, ALERT_BADGE, ALERT_STRIP, relativeTime } from '$lib/alert-ui';
-	import type { AlertEvent } from '$lib/types';
+	import type { WeatherAlertEvent } from '$lib/derive';
 
 	interface Props {
-		event: AlertEvent;
+		event: WeatherAlertEvent;
 	}
 	let { event }: Props = $props();
 </script>
 
 <a
-	href={resolve(`/stations/${event.station_id}`)}
+	href={resolve(`/locations/${event.locationId}`)}
 	class="flex items-center gap-4 px-6 py-4 transition hover:bg-cream/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
 >
 	<span
@@ -23,14 +23,14 @@
 
 	<div class="min-w-0 flex-1">
 		<div class="flex items-center gap-2">
-			<p class="truncate text-sm font-semibold tracking-tight">{event.station}</p>
-			<span class="text-xs text-gray-400">· {event.region}</span>
+			<p class="truncate text-sm font-semibold tracking-tight">{event.locationName}</p>
+			<span class="text-xs text-gray-400">· {event.terrain}</span>
 		</div>
 		<p class="truncate text-xs text-gray-500">{event.message}</p>
 	</div>
 
 	<div class="hidden text-right sm:block">
-		<p class="text-sm font-semibold tracking-tight">{event.ec} g/L</p>
+		<p class="text-sm font-semibold tracking-tight">Còn {event.hoursAhead}h</p>
 		<span
 			class={clsx(
 				'text-xs font-medium',
