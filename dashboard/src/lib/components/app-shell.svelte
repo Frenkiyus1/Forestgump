@@ -1,0 +1,169 @@
+<script lang="ts">
+	import type { Snippet } from 'svelte';
+	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
+	import { clsx } from '$lib/clsx';
+	import logo from '$lib/assets/logo.png';
+	import LanguageToggle from './language-toggle.svelte';
+	import type { Bulletin } from '$lib/types';
+
+	let {
+		children,
+		lang = 'vi',
+		onLangChange
+	}: {
+		children: Snippet;
+		lang?: Bulletin['lang'];
+		onLangChange?: (l: Bulletin['lang']) => void;
+	} = $props();
+
+	const path = $derived(page.url.pathname);
+	let mobileOpen = $state(false);
+
+	type NavIcon = 'overview' | 'locations' | 'alerts';
+	type NavHref = '/' | '/locations' | '/alerts';
+	type NavItem = { label: string; href: NavHref; icon: NavIcon; active: boolean };
+
+	const nav = $derived<NavItem[]>([
+		{ label: 'Tổng quan', href: '/', icon: 'overview', active: path === '/' },
+		{
+			label: 'Khu vực',
+			href: '/locations',
+			icon: 'locations',
+			active: path.startsWith('/locations')
+		},
+		{ label: 'Cảnh báo', href: '/alerts', icon: 'alerts', active: path.startsWith('/alerts') }
+	]);
+
+	const linkBase = 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition';
+	const linkIdle = 'text-gray-500 hover:bg-cream/70 hover:text-gray-900';
+	const linkActive = 'bg-accent/10 font-medium text-accent';
+</script>
+
+{#snippet icon(name: NavIcon)}
+	<svg
+		viewBox="0 0 24 24"
+		class="h-[18px] w-[18px] shrink-0"
+		fill="none"
+		stroke="currentColor"
+		stroke-width="2"
+		stroke-linecap="round"
+		stroke-linejoin="round"
+		aria-hidden="true"
+	>
+		{#if name === 'overview'}
+			<path d="M3 12 12 3l9 9" /><path d="M5 10v10h14V10" />
+		{:else if name === 'locations'}
+			<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z" /><circle
+				cx="12"
+				cy="10"
+				r="2.5"
+			/>
+		{:else if name === 'alerts'}
+			<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" />
+		{/if}
+	</svg>
+{/snippet}
+
+<div class="relative min-h-screen bg-cream font-[Inter] text-gray-900">
+	<!-- shared ambient background -->
+	<div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+		<div
+			class="absolute -top-32 -right-24 h-[34rem] w-[34rem] rounded-full opacity-60 blur-3xl"
+			style="background: radial-gradient(circle, #d9efe9 0%, transparent 70%);"
+		></div>
+		<div
+			class="absolute top-1/3 -left-40 h-[30rem] w-[30rem] rounded-full opacity-50 blur-3xl"
+			style="background: radial-gradient(circle, #fde9c8 0%, transparent 70%);"
+		></div>
+	</div>
+
+	<!-- mobile backdrop -->
+	{#if mobileOpen}
+		<button
+			type="button"
+			aria-label="Đóng menu"
+			class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
+			onclick={() => (mobileOpen = false)}
+		></button>
+	{/if}
+
+	<!-- sidebar -->
+	<aside
+		class={clsx(
+			'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-black/[0.04] bg-white/80 backdrop-blur-xl transition-transform duration-300 lg:translate-x-0',
+			mobileOpen ? 'translate-x-0' : '-translate-x-full'
+		)}
+	>
+		<div class="flex items-center gap-2 px-6 py-5">
+			<img src={logo} alt="" class="h-[53px] w-[53px] shrink-0 rounded-full object-cover" />
+			<span class="text-[18px] font-semibold tracking-tight">ForestGump</span>
+		</div>
+
+		<nav class="flex-1 px-4 py-2" aria-label="Điều hướng chính">
+			<p class="px-3 pt-2 pb-2 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+				Menu
+			</p>
+			<ul class="flex flex-col gap-1">
+				{#each nav as item (item.label)}
+					<li>
+						<a
+							href={resolve(item.href)}
+							data-sveltekit-preload-data
+							class={clsx(linkBase, item.active ? linkActive : linkIdle)}
+							aria-current={item.active ? 'page' : undefined}
+							onclick={() => (mobileOpen = false)}
+						>
+							{@render icon(item.icon)}
+							{item.label}
+						</a>
+					</li>
+				{/each}
+			</ul>
+		</nav>
+
+		<!-- attribution footer -->
+		<div class="border-t border-black/[0.04] p-4">
+			<p class="text-xs text-gray-400">Nguồn dữ liệu</p>
+			<p class="mt-0.5 text-sm font-medium text-gray-700">Đài KTTV khu vực Tây Bắc</p>
+			<p class="mt-2 text-[11px] text-gray-400">VAIC 2026 · Đội ALT F4</p>
+		</div>
+	</aside>
+
+	<!-- content column -->
+	<div class="lg:pl-64">
+		<!-- slim top bar -->
+		<header
+			class="sticky top-0 z-30 border-b border-black/[0.04] bg-white/70 backdrop-blur-xl lg:bg-transparent lg:backdrop-blur-none"
+		>
+			<div class="flex items-center gap-3 px-6 py-3.5">
+				<button
+					type="button"
+					aria-label="Mở menu"
+					class="grid h-9 w-9 place-items-center rounded-lg text-gray-500 transition hover:bg-cream/70 lg:hidden"
+					onclick={() => (mobileOpen = true)}
+				>
+					<svg
+						viewBox="0 0 24 24"
+						class="h-5 w-5"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						aria-hidden="true"
+					>
+						<path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="round" />
+					</svg>
+				</button>
+				<div class="ml-auto">
+					{#if onLangChange}
+						<LanguageToggle {lang} onChange={onLangChange} />
+					{/if}
+				</div>
+			</div>
+		</header>
+
+		<main class="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-20">
+			{@render children()}
+		</main>
+	</div>
+</div>
