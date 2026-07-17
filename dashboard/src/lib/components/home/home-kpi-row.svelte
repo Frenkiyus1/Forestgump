@@ -2,22 +2,17 @@
 	import { clsx } from '$lib/clsx';
 	import { CARD_INTERACTIVE } from '$lib/ui';
 	import { reveal } from '$lib/actions/reveal';
-	import { t } from '$lib/i18n.svelte';
+	import { ALERT_LABEL, ALERT_BADGE, ALERT_STRIP } from '$lib/alert-ui';
+	import type { AlertLevel } from '$lib/types';
+	import type { DashboardSummary, LocationDetail } from '$lib/derive';
 
-	type Alert = 'green' | 'yellow' | 'red';
-	type Row = { name: string; ec: number; forecast: number; level: number; alert: Alert };
-	type CardKey = 'safe' | 'risk' | 'peak' | 'level';
+	type CardKey = 'safe' | 'risk' | 'next' | 'rain';
 
 	interface Props {
-		greenCount: number;
-		total: number;
-		safePct: number;
-		atRisk: number;
-		peak: number;
-		avgLevel: number;
-		stations: Row[];
+		summary: DashboardSummary;
+		details: LocationDetail[];
 	}
-	let { greenCount, total, safePct, atRisk, peak, avgLevel, stations }: Props = $props();
+	let { summary, details }: Props = $props();
 
 	let activeCard = $state<CardKey | null>(null);
 	function toggle(key: CardKey) {
@@ -27,79 +22,68 @@
 	const kpis = $derived([
 		{
 			key: 'safe' as CardKey,
-			label: t('kpi.safe'),
-			value: `${greenCount}`,
-			suffix: `/${total}`,
-			sub: t('kpi.safe.sub', { pct: safePct }),
+			label: 'An toàn',
+			value: `${summary.greenCount}`,
+			suffix: `/${summary.total}`,
+			sub: `${summary.safePct}% khu vực`,
 			tone: 'text-green-600'
 		},
 		{
 			key: 'risk' as CardKey,
-			label: t('kpi.risk'),
-			value: `${atRisk}`,
-			sub: t('kpi.risk.sub'),
+			label: 'Có cảnh báo',
+			value: `${summary.atRiskCount}`,
+			sub: 'Vàng hoặc đỏ',
 			tone: 'text-yellow-600'
 		},
 		{
-			key: 'peak' as CardKey,
-			label: t('kpi.peak'),
-			value: `${peak.toFixed(1)}`,
-			unit: 'g/L',
-			sub: t('kpi.peak.sub'),
+			key: 'next' as CardKey,
+			label: 'Cảnh báo gần nhất',
+			value: summary.nextAlertHours == null ? '—' : `${summary.nextAlertHours}`,
+			unit: summary.nextAlertHours == null ? '' : 'giờ',
+			sub: summary.nextAlertHours == null ? 'Không có cảnh báo' : 'Còn lại',
 			tone: 'text-red-600'
 		},
 		{
-			key: 'level' as CardKey,
-			label: t('kpi.level'),
-			value: `${avgLevel.toFixed(1)}`,
-			unit: 'm',
-			sub: t('kpi.level.sub'),
+			key: 'rain' as CardKey,
+			label: 'Mưa ngày mai cao nhất',
+			value: `${summary.peakRainTomorrow.toFixed(0)}`,
+			unit: 'mm',
+			sub: 'Trên toàn tỉnh',
 			tone: 'text-gray-400'
 		}
 	]);
 
-	const DOT: Record<Alert, string> = {
-		green: 'bg-green-500',
-		yellow: 'bg-yellow-500',
-		red: 'bg-red-600'
-	};
-	const DOT_HALO: Record<Alert, string> = {
-		green: 'bg-green-100',
-		yellow: 'bg-yellow-100',
-		red: 'bg-red-100'
-	};
-	const BADGE: Record<Alert, string> = {
-		green: 'bg-green-50 text-green-700',
-		yellow: 'bg-yellow-50 text-yellow-700',
-		red: 'bg-red-50 text-red-700'
-	};
-	const LABEL = $derived<Record<Alert, string>>({
-		green: t('alert.green'),
-		yellow: t('alert.yellow'),
-		red: t('alert.red')
-	});
-
-	const safeStations = $derived(stations.filter((s) => s.alert === 'green'));
-	const riskStations = $derived(
-		stations.filter((s) => s.alert !== 'green').sort((a, b) => b.ec - a.ec)
+	const safeLocations = $derived(details.filter((d) => d.alertLevel === 'green'));
+	const riskLocations = $derived(
+		details
+			.filter((d) => d.alertLevel !== 'green')
+			.sort((a, b) => a.alert!.hoursAhead - b.alert!.hoursAhead)
 	);
-	const byForecast = $derived([...stations].sort((a, b) => b.forecast - a.forecast));
-	const byLevel = $derived([...stations].sort((a, b) => b.level - a.level));
+	const byUrgency = $derived(
+		[...details].sort(
+			(a, b) => (a.alert?.hoursAhead ?? Infinity) - (b.alert?.hoursAhead ?? Infinity)
+		)
+	);
+	const byRainTomorrow = $derived(
+		[...details].sort(
+			(a, b) => (b.daily[1]?.rainSum ?? b.today.rainSum) - (a.daily[1]?.rainSum ?? a.today.rainSum)
+		)
+	);
 </script>
 
-{#snippet dot(alert: Alert)}
+{#snippet dot(level: AlertLevel)}
 	<span
 		class={clsx(
 			'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full',
-			DOT_HALO[alert]
+			ALERT_BADGE[level]
 		)}
 		aria-hidden="true"
 	>
-		<span class={clsx('h-2 w-2 rounded-full', DOT[alert])}></span>
+		<span class={clsx('h-2 w-2 rounded-full', ALERT_STRIP[level])}></span>
 	</span>
 {/snippet}
 
-<section class="mb-6" aria-label="Key metrics">
+<section class="mb-6" aria-label="Chỉ số chính">
 	<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
 		{#each kpis as kpi, i (kpi.key)}
 			<button
@@ -131,8 +115,8 @@
 				</div>
 				<p class="mt-3 text-3xl font-semibold tracking-tight">
 					{kpi.value}{#if 'suffix' in kpi}<span class="text-gray-400">{kpi.suffix}</span
-						>{/if}{#if 'unit' in kpi}<span class="ml-1 text-lg font-medium text-gray-400"
-							>{kpi.unit}</span
+						>{/if}{#if 'unit' in kpi && kpi.unit}<span
+							class="ml-1 text-lg font-medium text-gray-400">{kpi.unit}</span
 						>{/if}
 				</p>
 				<p class={clsx('mt-1 text-xs font-medium', kpi.tone)}>{kpi.sub}</p>
@@ -146,114 +130,112 @@
 				use:reveal
 				class="mt-4 rounded-3xl border border-black/[0.04] bg-white p-6 shadow-[0_1px_2px_rgba(31,25,16,0.04)]"
 				role="region"
-				aria-label="Detail breakdown"
+				aria-label="Chi tiết"
 			>
 				{#if activeCard === 'safe'}
 					<div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
 						<div>
 							<p class="mb-3 text-[11px] font-semibold tracking-widest text-green-600 uppercase">
-								Safe — {safeStations.length} station{safeStations.length !== 1 ? 's' : ''}
+								An toàn — {safeLocations.length} khu vực
 							</p>
-							{#if safeStations.length}
+							{#if safeLocations.length}
 								<ul class="flex flex-col gap-0.5">
-									{#each safeStations as s (s.name)}
+									{#each safeLocations as d (d.locationId)}
 										<li class="flex items-center gap-2.5 py-1.5">
 											{@render dot('green')}
-											<span class="text-sm font-medium">{s.name}</span>
-											<span class="ml-auto text-sm tabular-nums text-gray-400">{s.ec} g/L</span>
+											<span class="text-sm font-medium">{d.name}</span>
+											<span class="ml-auto text-sm text-gray-400">{d.terrain}</span>
 										</li>
 									{/each}
 								</ul>
 							{:else}
-								<p class="text-sm text-gray-400">No stations currently safe.</p>
+								<p class="text-sm text-gray-400">Chưa có khu vực nào an toàn.</p>
 							{/if}
 						</div>
 						<div>
 							<p class="mb-3 text-[11px] font-semibold tracking-widest text-yellow-600 uppercase">
-								At risk — {riskStations.length} station{riskStations.length !== 1 ? 's' : ''}
+								Có cảnh báo — {riskLocations.length} khu vực
 							</p>
-							{#if riskStations.length}
+							{#if riskLocations.length}
 								<ul class="flex flex-col gap-0.5">
-									{#each riskStations as s (s.name)}
+									{#each riskLocations as d (d.locationId)}
 										<li class="flex items-center gap-2.5 py-1.5">
-											{@render dot(s.alert)}
-											<span class="text-sm font-medium">{s.name}</span>
+											{@render dot(d.alertLevel)}
+											<span class="text-sm font-medium">{d.name}</span>
 											<span
 												class={clsx(
 													'ml-auto rounded-full px-2 py-0.5 text-xs font-medium',
-													BADGE[s.alert]
-												)}>{s.ec} g/L</span
+													ALERT_BADGE[d.alertLevel]
+												)}>Còn {d.alert?.hoursAhead}h</span
 											>
 										</li>
 									{/each}
 								</ul>
 							{:else}
-								<p class="text-sm text-gray-400">All stations safe.</p>
+								<p class="text-sm text-gray-400">Tất cả khu vực đều an toàn.</p>
 							{/if}
 						</div>
 					</div>
 				{:else if activeCard === 'risk'}
 					<p class="mb-4 text-[11px] font-semibold tracking-widest text-yellow-600 uppercase">
-						Stations needing attention — {riskStations.length}
+						Khu vực cần chú ý — {riskLocations.length}
 					</p>
-					{#if riskStations.length}
+					{#if riskLocations.length}
 						<ul class="flex flex-col divide-y divide-gray-100/80">
-							{#each riskStations as s (s.name)}
+							{#each riskLocations as d (d.locationId)}
 								<li class="flex items-center gap-4 py-3">
-									{@render dot(s.alert)}
-									<span class="w-28 font-medium">{s.name}</span>
-									<span class="text-sm text-gray-500">EC {s.ec} g/L</span>
-									<span class="text-sm text-gray-300" aria-hidden="true">→</span>
-									<span class="text-sm font-medium">Forecast {s.forecast.toFixed(1)} g/L</span>
+									{@render dot(d.alertLevel)}
+									<span class="w-32 font-medium">{d.name}</span>
+									<span class="text-sm text-gray-500">{d.alert?.reason}</span>
 									<span
 										class={clsx(
 											'ml-auto rounded-full px-2.5 py-1 text-xs font-medium',
-											BADGE[s.alert]
-										)}>{LABEL[s.alert]}</span
+											ALERT_BADGE[d.alertLevel]
+										)}>{ALERT_LABEL[d.alertLevel]}</span
 									>
 								</li>
 							{/each}
 						</ul>
 					{:else}
-						<p class="text-sm text-gray-400">All stations in safe range.</p>
+						<p class="text-sm text-gray-400">Tất cả khu vực trong ngưỡng an toàn.</p>
 					{/if}
-				{:else if activeCard === 'peak'}
+				{:else if activeCard === 'next'}
 					<p class="mb-4 text-[11px] font-semibold tracking-widest text-red-500 uppercase">
-						Stations ranked by 24h forecast
+						Xếp hạng theo thời gian còn lại
 					</p>
 					<ul class="flex flex-col divide-y divide-gray-100/80">
-						{#each byForecast as s, i (s.name)}
+						{#each byUrgency as d, i (d.locationId)}
 							<li class="flex items-center gap-4 py-3">
 								<span class="w-5 text-sm font-bold tabular-nums text-gray-600">{i + 1}</span>
-								{@render dot(s.alert)}
-								<span class="font-medium">{s.name}</span>
-								<span class="ml-auto text-sm text-gray-400">Now {s.ec} g/L</span>
-								<span class="w-32 text-right text-sm font-semibold tabular-nums"
-									>→ {s.forecast.toFixed(1)} g/L</span
-								>
+								{@render dot(d.alertLevel)}
+								<span class="font-medium">{d.name}</span>
+								<span class="ml-auto w-32 text-right text-sm font-semibold tabular-nums">
+									{d.alert ? `Còn ${d.alert.hoursAhead}h` : 'Không có'}
+								</span>
 							</li>
 						{/each}
 					</ul>
-				{:else if activeCard === 'level'}
+				{:else if activeCard === 'rain'}
 					<p class="mb-4 text-[11px] font-semibold tracking-widest text-gray-400 uppercase">
-						Water level across stations (m)
+						Lượng mưa dự báo ngày mai (mm)
 					</p>
 					<ul class="flex flex-col divide-y divide-gray-100/80">
-						{#each byLevel as s, i (s.name)}
+						{#each byRainTomorrow as d, i (d.locationId)}
+							{@const rain = d.daily[1]?.rainSum ?? d.today.rainSum}
 							<li class="flex items-center gap-4 py-3">
 								<span class="w-5 text-sm font-bold tabular-nums text-gray-600">{i + 1}</span>
-								{@render dot(s.alert)}
-								<span class="font-medium">{s.name}</span>
+								{@render dot(d.alertLevel)}
+								<span class="font-medium">{d.name}</span>
 								<div class="ml-auto flex items-center gap-3">
 									<div class="h-1.5 w-32 overflow-hidden rounded-full bg-gray-100">
 										<div
 											class="h-full rounded-full bg-accent/60"
-											style="width: {Math.min((s.level / 2.5) * 100, 100).toFixed(0)}%"
+											style="width: {Math.min((rain / 100) * 100, 100).toFixed(0)}%"
 										></div>
 									</div>
-									<span class="w-12 text-right text-sm font-semibold tabular-nums"
-										>{s.level.toFixed(1)} m</span
-									>
+									<span class="w-14 text-right text-sm font-semibold tabular-nums">
+										{rain.toFixed(0)} mm
+									</span>
 								</div>
 							</li>
 						{/each}
