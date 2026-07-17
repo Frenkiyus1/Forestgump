@@ -1,0 +1,4 @@
+.pio/
+.vscode/
+# Bí mật: APN, broker, mật khẩu - KHÔNG commit (CLAUDE.md mục Security)
+include/secrets.h

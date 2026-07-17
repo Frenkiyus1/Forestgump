@@ -1,0 +1,30 @@
+# Node.js
+node_modules/
+.env
+
+# TypeScript build output (backend)
+dist/
+
+# SvelteKit
+.svelte-kit/
+build/
+
+# PlatformIO (Firmware)
+.pio/
+
+# Python (AI Engine)
+__pycache__/
+.venv/
+*.pkl
+
+# Deploy secrets (production)
+infra/mosquitto/passwd
+infra/mosquitto/certs/
+
+# AI model artifacts (sinh lại bằng: python ai_engine/train.py)
+ai_engine/models/
+ai_engine/xgboost_model*.json
+
+# Log chạy local (uvicorn redirect)
+ai_engine/*.out
+ai_engine/*.err
