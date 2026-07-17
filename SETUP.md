@@ -3,6 +3,37 @@
 Hướng dẫn này giúp bất kỳ ai `git clone`/`git pull` repo này cũng chạy ra **kết quả giống hệt nhau**,
 bất kể hệ điều hành. Với việc deploy production lên VPS, xem [DEPLOY.md](DEPLOY.md).
 
+## 0. Cách nhanh nhất — nhờ AI coding agent làm hộ
+
+Nếu bạn đang dùng Claude Code, Cursor, Antigravity hay agent tương tự, **không cần đọc các mục bên
+dưới** — copy nguyên khối prompt này, dán vào agent ngay sau khi `git clone` repo, rồi để nó tự làm
+hết (cài phần mềm còn thiếu, tạo `.env`, cài dependencies, khởi động và mở trình duyệt kiểm tra):
+
+```text
+Đọc file SETUP.md ở gốc repo này và tự động thực hiện toàn bộ các bước để chạy dự án SaliGuard ở
+chế độ local development. Cụ thể:
+
+1. Kiểm tra máy đã có Node.js 22+, Python 3.12, Docker Desktop, pnpm chưa — cái nào thiếu thì cài
+   (Windows dùng winget, macOS dùng brew, Linux dùng apt/dnf tùy distro). Nếu không cài được Docker
+   (ví dụ máy ảo không hỗ trợ ảo hoá lồng nhau), làm theo mục 6 trong SETUP.md (cài PostgreSQL
+   native) thay thế.
+2. Chạy `docker compose up -d` ở gốc repo để dựng PostgreSQL + TimescaleDB và MQTT broker. Đợi
+   container "healthy" rồi mới sang bước sau.
+3. Copy backend/.env.example -> backend/.env và dashboard/.env.example -> dashboard/.env (giữ
+   nguyên giá trị mặc định, chúng đã khớp sẵn với docker-compose.yml).
+4. Cài dependencies: npm install ở gốc, npm install trong backend/, pip install -r
+   ai_engine/requirements.txt, pnpm install trong dashboard/.
+5. Khởi động backend+ai_engine bằng `npm run dev` ở gốc, và dashboard bằng `pnpm dev` trong
+   dashboard/ (chạy nền/song song, không chặn nhau).
+6. Kiểm tra http://localhost:3000/health, http://127.0.0.1:8000/health và http://localhost:5173 đều
+   trả về OK/200, rồi mở http://localhost:5173 trong trình duyệt.
+7. Nếu gặp lỗi (thiếu quyền, cổng bận, dependency cài không được...), tự chẩn đoán và sửa trước khi
+   báo tôi — chỉ dừng lại hỏi nếu cần quyết định (vd. ghi đè service đang chạy trên cổng đó).
+
+Báo lại cho tôi khi cả 3 dịch vụ đã chạy và dashboard mở được, kèm theo bất kỳ bước nào bạn phải làm
+khác với SETUP.md (do khác biệt môi trường/OS).
+```
+
 ## 1. Yêu cầu cài sẵn
 
 | Công cụ | Phiên bản | Dùng cho |
