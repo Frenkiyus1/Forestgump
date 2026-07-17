@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { Pool } from 'pg';
+import type { LocationWeather } from './weather-types.js';
 
 /**
  * Kết nối PostgreSQL/TimescaleDB qua connection pool.
@@ -273,6 +274,50 @@ export async function getUserEmailsByProvince(province: string): Promise<string[
     const message = err instanceof Error ? err.message : String(err);
     console.error('[DB] Failed to query users by province:', message);
     return [];
+  }
+}
+
+/**
+ * Upsert dự báo thời tiết (7 ngày) của 1 địa điểm vào bảng `weather_forecast`.
+ * Key trùng (location_code, forecast_date, source) sẽ được ghi đè bằng dữ
+ * liệu mới nhất. Lỗi DB chỉ log, không throw — không chặn response API.
+ */
+export async function upsertWeatherForecast(weather: LocationWeather): Promise<void> {
+  const sql = `
+    INSERT INTO weather_forecast
+      (location_code, forecast_date, source, temp_min_c, temp_max_c, precipitation_mm, humidity_pct, dew_point_c, wind_speed_kmh, fetched_at)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    ON CONFLICT (location_code, forecast_date, source) DO UPDATE SET
+      temp_min_c = EXCLUDED.temp_min_c,
+      temp_max_c = EXCLUDED.temp_max_c,
+      precipitation_mm = EXCLUDED.precipitation_mm,
+      humidity_pct = EXCLUDED.humidity_pct,
+      dew_point_c = EXCLUDED.dew_point_c,
+      wind_speed_kmh = EXCLUDED.wind_speed_kmh,
+      fetched_at = EXCLUDED.fetched_at
+  `;
+
+  try {
+    for (const day of weather.daily) {
+      await pool.query(sql, [
+        weather.locationCode,
+        day.date,
+        weather.source,
+        day.tempMinC,
+        day.tempMaxC,
+        day.precipitationMm,
+        day.humidityPct,
+        day.dewPointC,
+        day.windSpeedKmh,
+        weather.fetchedAt,
+      ]);
+    }
+    console.log(
+      `[DB] Upserted ${weather.daily.length} weather_forecast rows for "${weather.locationCode}" (${weather.source})`
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[DB] Failed to upsert weather_forecast for "${weather.locationCode}":`, message);
   }
 }
 
