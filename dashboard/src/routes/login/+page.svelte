@@ -45,9 +45,7 @@
 	<section class="flex flex-col justify-center px-8 py-12 sm:px-16">
 		<div class="mx-auto w-full max-w-sm">
 			<h1 class="text-2xl font-semibold text-slate-900">Đăng nhập ForestGump</h1>
-			<p class="mt-1 text-sm text-slate-500">
-				Theo dõi cảnh báo xâm nhập mặn theo thời gian thực.
-			</p>
+			<p class="mt-1 text-sm text-slate-500">Theo dõi cảnh báo xâm nhập mặn theo thời gian thực.</p>
 
 			<form class="mt-8 flex flex-col gap-4" onsubmit={onSubmit}>
 				<label class="flex flex-col gap-1 text-sm font-medium text-slate-700">
