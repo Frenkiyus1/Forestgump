@@ -41,5 +41,7 @@
 		"vitest": "^4.1.9",
 		"wrangler": "^4.97.0"
 	},
-	"dependencies": {}
+	"dependencies": {
+		"uplot": "^1.6.32"
+	}
 }
