@@ -33,10 +33,20 @@ current_tunnel_url() {
 }
 
 # Đợi tối đa ~20s để cloudflared in ra URL trycloudflare.com mới sau restart.
+#
+# LƯU Ý: subdomain quick tunnel thật luôn là 4 từ điển nối bằng dấu gạch
+# ngang (vd. advertisement-soma-skating-tagged) — regex bắt buộc >=2 dấu
+# gạch ngang để KHÔNG khớp nhầm "https://api.trycloudflare.com", vốn là
+# domain API nội bộ mà cloudflared tự gọi để tạo tunnel và có thể xuất hiện
+# trong log lỗi (vd. "failed to request quick Tunnel: ... dial tcp: lookup
+# api.trycloudflare.com ... no such host") khi lần thử trước đó bị lỗi DNS
+# thoáng qua. Trước đây bug này khiến watchdog ghi nhầm URL lỗi vào
+# dashboard/.env, làm dashboard gọi API thất bại (530) cho tới chu kỳ check
+# kế tiếp mới tự sửa lại.
 wait_for_new_url() {
 	local i url
 	for i in 1 2 3 4 5 6 7 8 9 10; do
-		url=$(docker logs "$CONTAINER" 2>&1 | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1)
+		url=$(docker logs --since "$RESTART_TS" "$CONTAINER" 2>&1 | grep -oE 'https://[a-z0-9]+(-[a-z0-9]+){2,}\.trycloudflare\.com' | tail -1)
 		if [ -n "$url" ]; then
 			printf '%s' "$url"
 			return 0
@@ -48,6 +58,7 @@ wait_for_new_url() {
 
 reset_tunnel() {
 	log "RESET: restart container $CONTAINER"
+	RESTART_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 	docker restart "$CONTAINER" >/dev/null 2>&1
 	sleep 5
 
