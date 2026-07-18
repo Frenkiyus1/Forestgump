@@ -8,7 +8,11 @@ ENV PYTHONUNBUFFERED=1 \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py risk_engine.py thresholds.py downscale.py bulletin.py ./
+COPY app.py risk_engine.py thresholds.py downscale.py bulletin.py train_flood.py ./
+# [OPTIONAL] flood_model.json: nếu đã chạy `python train_flood.py` để train,
+# copy thêm file model vào đây (image build sẽ lỗi nếu bật dòng dưới mà file
+# chưa tồn tại — mặc định COMMENT OUT, /predict-flood-risk tự fallback mock).
+# COPY flood_model.json ./
 
 EXPOSE 8000
 
