@@ -1,13 +1,4 @@
 <script module lang="ts">
-	/**
-	 * Cả 3 anchor có dữ liệu đo thật (khớp DienBienForecastEntry.location.name,
-	 * tức tên hành chính hiện hành trong backend/src/config/locations.ts) đều
-	 * thuộc phạm vi tính năng heatmap hiểm hoạ theo ngày — trước đây Mường Nhé
-	 * bị bỏ sót khỏi danh sách này dù buildRegionHeat() vẫn coi nó là anchor
-	 * (isAnchor: true), khiến bấm vào Mường Nhé không hiện heatmap như 2 anchor
-	 * còn lại và không khớp caption "Mường Nhé, Tủa Chùa, Điện Biên Phủ" ở
-	 * routes/map/+page.svelte.
-	 */
 	export const HAZARD_HEATMAP_ANCHOR_NAMES: ReadonlySet<string> = new Set([
 		'Xã Tủa Chùa',
 		'Phường Điện Biên Phủ',
@@ -27,110 +18,14 @@
 	interface Props {
 		regions: DienBienHotspot[];
 		onSelect: (id: number) => void;
-		/** Màu cảnh báo theo từng vùng (hazard + ngày đang chọn) — null khi chưa có dữ liệu. */
 		heat?: Map<number, RegionHeat> | null;
-		/** Dự báo đầy đủ theo anchor — dùng để vẽ heatmap hiểm hoạ khi chọn 1 trong 3 anchor
-		 * thuộc phạm vi (xem HAZARD_HEATMAP_ANCHOR_NAMES). */
 		forecastEntries?: DienBienForecastEntry[];
 	}
 	let { regions, onSelect, heat = null, forecastEntries = [] }: Props = $props();
 
 	let hoveredId = $state<number | null>(null);
 	let selectedId = $state<number | null>(null);
-	let searchQuery = $state('');
 	let pinPos = $state<{ x: number; y: number } | null>(null);
-
-	// --- pan / zoom -----------------------------------------------------
-	const MIN_SCALE = 1;
-	const MAX_SCALE = 4;
-	let scale = $state(1);
-	let panX = $state(0);
-	let panY = $state(0);
-	let isPanning = $state(false);
-	let dragMoved = false;
-	let suppressClick = false;
-	let dragStart = { x: 0, y: 0, panX: 0, panY: 0 };
-	let mapBoxEl = $state<HTMLDivElement | undefined>(undefined);
-
-	function clampPan(x: number, y: number, s: number) {
-		if (!mapBoxEl) return { x, y };
-		const { width, height } = mapBoxEl.getBoundingClientRect();
-		const scaledW = width * s;
-		const scaledH = height * s;
-		const minX = Math.min(0, width - scaledW);
-		const minY = Math.min(0, height - scaledH);
-		return { x: Math.min(0, Math.max(minX, x)), y: Math.min(0, Math.max(minY, y)) };
-	}
-
-	function zoomAt(cx: number, cy: number, factor: number) {
-		const nextScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * factor));
-		if (nextScale === scale) return;
-		const imgX = (cx - panX) / scale;
-		const imgY = (cy - panY) / scale;
-		const nextPanX = cx - imgX * nextScale;
-		const nextPanY = cy - imgY * nextScale;
-		const clamped = clampPan(nextPanX, nextPanY, nextScale);
-		scale = nextScale;
-		panX = clamped.x;
-		panY = clamped.y;
-	}
-
-	function onWheel(e: WheelEvent) {
-		e.preventDefault();
-		if (!mapBoxEl) return;
-		const rect = mapBoxEl.getBoundingClientRect();
-		zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 1.15 : 1 / 1.15);
-	}
-
-	function zoomButton(factor: number) {
-		if (!mapBoxEl) return;
-		const rect = mapBoxEl.getBoundingClientRect();
-		zoomAt(rect.width / 2, rect.height / 2, factor);
-	}
-
-	function resetView() {
-		scale = 1;
-		panX = 0;
-		panY = 0;
-	}
-
-	function onPointerDown(e: PointerEvent) {
-		if (e.button !== 0) return;
-		isPanning = true;
-		dragMoved = false;
-		dragStart = { x: e.clientX, y: e.clientY, panX, panY };
-		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-	}
-	function onPointerMove(e: PointerEvent) {
-		if (!isPanning) return;
-		const dx = e.clientX - dragStart.x;
-		const dy = e.clientY - dragStart.y;
-		if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved = true;
-		if (!dragMoved) return;
-		const clamped = clampPan(dragStart.panX + dx, dragStart.panY + dy, scale);
-		panX = clamped.x;
-		panY = clamped.y;
-	}
-	function onPointerUp() {
-		if (isPanning && dragMoved) {
-			suppressClick = true;
-			setTimeout(() => (suppressClick = false), 0);
-		}
-		isPanning = false;
-	}
-	function onClickCapture(e: MouseEvent) {
-		if (suppressClick) {
-			e.stopPropagation();
-			e.preventDefault();
-		}
-	}
-	// ---------------------------------------------------------------------
-
-	const filteredRegions = $derived(
-		searchQuery
-			? regions.filter((r) => r.name.toLowerCase().includes(searchQuery.toLowerCase()))
-			: regions
-	);
 
 	const selectedRegion = $derived(regions.find((r) => r.id === selectedId) ?? null);
 	const pinRegionId = $derived(hoveredId ?? selectedId);
@@ -138,7 +33,6 @@
 	const pinHeat = $derived(pinRegionId != null ? (heat?.get(pinRegionId) ?? null) : null);
 
 	const entryByName = $derived(new Map(forecastEntries.map((e) => [e.location.name, e])));
-	/** Chỉ khác null khi vùng đang chọn là 1 trong 3 anchor thuộc phạm vi heatmap. */
 	const selectedAnchorEntry = $derived(
 		selectedRegion && HAZARD_HEATMAP_ANCHOR_NAMES.has(selectedRegion.name)
 			? (entryByName.get(selectedRegion.name) ?? null)
@@ -185,8 +79,6 @@
 		hoveredId = id;
 	}
 
-	/** Fill = 1 opacity cố định, chỉ đổi theo alertLevel (KHÔNG theo độ tin cậy). Độ tin
-	 * cậy vẫn thể hiện qua viền: dày hơn cho anchor, nét đứt cho ước tính tin cậy thấp. */
 	const REGION_FILL_OPACITY = 0.5;
 	const REGION_FILL_OPACITY_ACTIVE = 0.7;
 
@@ -218,263 +110,140 @@
 	}
 </script>
 
-<div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,26rem)_1fr]">
-	<div
-		class={clsx(CARD, 'relative w-full overflow-hidden rounded-2xl p-0')}
-		style="aspect-ratio: 926 / 1178; min-height: 70vh;"
-	>
+<div class={clsx(CARD, 'relative w-full overflow-hidden rounded-2xl p-0')} style="min-height: 80vh;">
+	<div class="relative h-full w-full touch-none select-none">
 		<div
-			bind:this={mapBoxEl}
-			class="absolute inset-0 touch-none overscroll-contain select-none"
-			style="cursor: {isPanning ? 'grabbing' : 'grab'}"
-			role="presentation"
-			onwheel={onWheel}
-			onpointerdown={onPointerDown}
-			onpointermove={onPointerMove}
-			onpointerup={onPointerUp}
-			onpointercancel={onPointerUp}
-			onclickcapture={onClickCapture}
+			class="h-full w-full"
+			style={zoomingRegionId
+				? zoomStyle
+				: ''}
 		>
-			<div
-				class="absolute top-0 left-0 h-full w-full"
-				style={zoomingRegionId
-					? zoomStyle
-					: `transform: translate(${panX}px, ${panY}px) scale(${scale}); transform-origin: 0 0;`}
+			<img
+				src="/dienbien-map.png"
+				alt="Bản đồ Điện Biên"
+				class="pointer-events-none block h-full w-full object-contain select-none"
+				draggable="false"
+			/>
+			<svg
+				viewBox={MAP_VIEWBOX}
+				preserveAspectRatio="xMidYMid meet"
+				class="absolute inset-0 h-full w-full"
+				role="group"
+				aria-label="Bản đồ tương tác Điện Biên"
 			>
-				<img
-					src="/dienbien-map.png"
-					alt="Bản đồ Điện Biên"
-					class="pointer-events-none block h-full w-full object-contain select-none"
-					draggable="false"
-				/>
-				<svg
-					viewBox={MAP_VIEWBOX}
-					preserveAspectRatio="xMidYMid meet"
-					class="absolute inset-0 h-full w-full"
-					role="group"
-					aria-label="Bản đồ tương tác Điện Biên"
+				{#each regions as region (region.id)}
+					{@const isActive = hoveredId === region.id || selectedId === region.id}
+					{@const style = regionStyle(region, isActive)}
+					<path
+						d={region.path}
+						class="cursor-pointer outline-none transition-colors duration-150"
+						fill={style.fill}
+						stroke={style.stroke}
+						stroke-width={style.strokeWidth}
+						stroke-dasharray={style.dashed ? '4 3' : undefined}
+						vector-effect="non-scaling-stroke"
+						role="button"
+						tabindex="0"
+						aria-label={region.name}
+						onclick={() => select(region.id)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								select(region.id);
+							}
+						}}
+						onmouseenter={() => {
+							hoverRegion(region.id);
+							showPin(region);
+						}}
+						onmouseleave={() => {
+							hoverRegion(null);
+							hidePin();
+						}}
+						onfocus={() => {
+							hoverRegion(region.id);
+							showPin(region);
+						}}
+						onblur={() => {
+							hoverRegion(null);
+							hidePin();
+						}}
+					/>
+				{/each}
+			</svg>
+
+			{#if pinPos && pinRegion}
+				<div
+					class="pointer-events-none absolute z-10"
+					style="left: {(pinPos.x / 926) * 100}%; top: {(pinPos.y / 1178) * 100}%;"
 				>
-					{#each regions as region (region.id)}
-						{@const isActive = hoveredId === region.id || selectedId === region.id}
-						{@const style = regionStyle(region, isActive)}
-						<path
-							d={region.path}
-							class="cursor-pointer outline-none transition-colors duration-150"
-							fill={style.fill}
-							stroke={style.stroke}
-							stroke-width={style.strokeWidth}
-							stroke-dasharray={style.dashed ? '4 3' : undefined}
-							vector-effect="non-scaling-stroke"
-							role="button"
-							tabindex="0"
-							aria-label={region.name}
-							onclick={() => select(region.id)}
-							onkeydown={(e) => {
-								if (e.key === 'Enter' || e.key === ' ') {
-									e.preventDefault();
-									select(region.id);
-								}
-							}}
-							onmouseenter={() => {
-								hoverRegion(region.id);
-								showPin(region);
-							}}
-							onmouseleave={() => {
-								hoverRegion(null);
-								hidePin();
-							}}
-							onfocus={() => {
-								hoverRegion(region.id);
-								showPin(region);
-							}}
-							onblur={() => {
-								hoverRegion(null);
-								hidePin();
-							}}
-						/>
-					{/each}
-				</svg>
-
-				{#if pinPos && pinRegion}
 					<div
-						class="pointer-events-none absolute z-10"
-						style="left: {(pinPos.x / 926) * 100}%; top: {(pinPos.y / 1178) * 100}%;"
+						class="min-w-[160px] max-w-[260px] rounded-xl bg-[rgba(17,24,39,0.92)] px-3 py-2 text-sm text-white shadow-xl"
 					>
-						<div
-							class="min-w-[160px] max-w-[260px] rounded-xl bg-[rgba(17,24,39,0.92)] px-3 py-2 text-sm text-white shadow-xl"
-							style="transform: translate(-50%, -120%) scale({1 / scale}); transform-origin: 50% 100%;"
-						>
-							<small class="block text-amber-200">Đơn vị số {pinRegion.id}</small>
-							<strong class="block text-white">{pinRegion.name}</strong>
-							{#if pinHeat}
-								<div class="mt-1.5 flex items-center gap-1.5">
-									<span
-										class="h-2 w-2 shrink-0 rounded-full"
-										style="background-color: {ALERT_HEX[pinHeat.alertLevel]}"
-										aria-hidden="true"
-									></span>
-									<span class="text-xs font-semibold">{ALERT_LABEL[pinHeat.alertLevel]}</span>
-								</div>
-								{#if pinHeat.isAnchor}
-									<p class="mt-1 text-[11px] text-emerald-300">● Dữ liệu đo thật</p>
-								{:else}
-									<p class="mt-1 text-[11px] text-white/60">
-										○ Ước tính theo vùng địa hình{pinHeat.confidence === 'low'
-											? ' (độ tin cậy thấp)'
-											: ''}
-									</p>
-								{/if}
-								{#if pinHeat.weather}
-									<dl
-										class="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-white/15 pt-1.5 text-[11px] text-white/85"
-									>
-										<dt class="text-white/50">Nhiệt độ</dt>
-										<dd>{pinHeat.weather.tempMinC}–{pinHeat.weather.tempMaxC}°C</dd>
-										<dt class="text-white/50">Mưa</dt>
-										<dd>{pinHeat.weather.precipitationMm} mm</dd>
-										<dt class="text-white/50">Độ ẩm</dt>
-										<dd>{pinHeat.weather.humidityPct}%</dd>
-										<dt class="text-white/50">Gió</dt>
-										<dd>{pinHeat.weather.windSpeedKmh} km/h</dd>
-									</dl>
-								{/if}
+						<small class="block text-amber-200">Đơn vị số {pinRegion.id}</small>
+						<strong class="block text-white">{pinRegion.name}</strong>
+						{#if pinHeat}
+							<div class="mt-1.5 flex items-center gap-1.5">
+								<span
+									class="h-2 w-2 shrink-0 rounded-full"
+									style="background-color: {ALERT_HEX[pinHeat.alertLevel]}"
+									aria-hidden="true"
+								></span>
+								<span class="text-xs font-semibold">{ALERT_LABEL[pinHeat.alertLevel]}</span>
+							</div>
+							{#if pinHeat.isAnchor}
+								<p class="mt-1 text-[11px] text-emerald-300">● Dữ liệu đo thật</p>
+							{:else}
+								<p class="mt-1 text-[11px] text-white/60">
+									○ Ước tính theo vùng địa hình{pinHeat.confidence === 'low'
+										? ' (độ tin cậy thấp)'
+										: ''}
+								</p>
 							{/if}
-						</div>
+							{#if pinHeat.weather}
+								<dl
+									class="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-white/15 pt-1.5 text-[11px] text-white/85"
+								>
+									<dt class="text-white/50">Nhiệt độ</dt>
+									<dd>{pinHeat.weather.tempMinC}–{pinHeat.weather.tempMaxC}°C</dd>
+									<dt class="text-white/50">Mưa</dt>
+									<dd>{pinHeat.weather.precipitationMm} mm</dd>
+									<dt class="text-white/50">Độ ẩm</dt>
+									<dd>{pinHeat.weather.humidityPct}%</dd>
+									<dt class="text-white/50">Gió</dt>
+									<dd>{pinHeat.weather.windSpeedKmh} km/h</dd>
+								</dl>
+							{/if}
+						{/if}
 					</div>
-				{/if}
-			</div>
-		</div>
-
-		<!-- zoom controls — fixed to the frame, not affected by pan -->
-		<div
-			class="pointer-events-none absolute top-3 right-3 z-20 flex flex-col gap-1 rounded-xl bg-[rgba(255,255,255,0.92)] p-1 shadow-lg"
-		>
-			<button
-				type="button"
-				class="pointer-events-auto grid h-8 w-8 place-items-center rounded-lg text-lg leading-none text-gray-600 hover:bg-gray-100"
-				aria-label="Phóng to"
-				onclick={() => zoomButton(1.35)}
-			>
-				+
-			</button>
-			<button
-				type="button"
-				class="pointer-events-auto grid h-8 w-8 place-items-center rounded-lg text-lg leading-none text-gray-600 hover:bg-gray-100"
-				aria-label="Thu nhỏ"
-				onclick={() => zoomButton(1 / 1.35)}
-			>
-				−
-			</button>
-			<button
-				type="button"
-				class="pointer-events-auto grid h-8 w-8 place-items-center rounded-lg text-[10px] font-semibold text-gray-600 hover:bg-gray-100"
-				aria-label="Đặt lại vị trí bản đồ"
-				onclick={resetView}
-			>
-				1:1
-			</button>
-		</div>
-
-		{#if heat}
-			<div
-				class="pointer-events-none absolute right-3 bottom-3 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[11px] shadow-lg"
-			>
-				<p class="mb-1.5 font-semibold text-gray-700">Chú giải</p>
-				<div class="flex flex-col gap-1">
-					{#each ['green', 'yellow', 'orange', 'red'] as const as level (level)}
-						<div class="flex items-center gap-1.5">
-							<span
-								class="h-2.5 w-2.5 rounded-full"
-								style="background-color: {ALERT_HEX[level]}"
-								aria-hidden="true"
-							></span>
-							<span class="text-gray-600">{ALERT_LABEL[level]}</span>
-						</div>
-					{/each}
 				</div>
-				<div class="mt-2 border-t border-gray-200 pt-1.5 text-gray-500">
-					<p>━ Viền đậm = đo thật</p>
-					<p>┄ Viền đứt = ước tính, tin cậy thấp</p>
-				</div>
-			</div>
-		{:else}
-			<div
-				class="pointer-events-none absolute bottom-3 left-3 z-20 rounded-full bg-[#fef3c7] px-3 py-1 text-xs font-bold text-[#92400e]"
-			>
-				Cuộn hoặc kéo để phóng to / di chuyển
-			</div>
-		{/if}
+			{/if}
+		</div>
 	</div>
 
-	<aside class="flex min-h-0 flex-col gap-3 lg:max-h-[33rem]">
-		{#if selectedRegion}
-			<div class="shrink-0 rounded-xl border border-[#fde68a] bg-[#fffbeb] p-3">
-				<small class="block text-[#b45309]">Đang chọn</small>
-				<strong class="mt-1 block text-lg">{selectedRegion.name}</strong>
-				<div class="mt-1 text-sm text-[#475467]">
-					Mã vùng: {selectedRegion.id}
-				</div>
-				{#if selectedAnchorEntry}
-					<p class="mt-1.5 text-xs text-[#b45309]">
-						↓ Xem heatmap hiểm hoạ theo ngày bên dưới bản đồ.
-					</p>
-				{/if}
-			</div>
-		{/if}
-
-		<input
-			type="text"
-			placeholder="Tìm theo tên xã/phường…"
-			autocomplete="off"
-			bind:value={searchQuery}
-			class="w-full shrink-0 rounded-xl border border-[#d0d7e2] px-3 py-2.5 text-sm"
-		/>
-
-		<div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-auto">
-			{#each filteredRegions as region (region.id)}
-				{@const regionHeat = heat?.get(region.id) ?? null}
-				<button
-					type="button"
-					onclick={() => select(region.id)}
-					onmouseenter={() => {
-						hoverRegion(region.id);
-						showPin(region);
-					}}
-					onmouseleave={() => {
-						hoverRegion(null);
-						hidePin();
-					}}
-					onfocus={() => {
-						hoverRegion(region.id);
-						showPin(region);
-					}}
-					onblur={() => {
-						hoverRegion(null);
-						hidePin();
-					}}
-					class={clsx(
-						'flex items-center gap-2 rounded-xl border-0 px-3 py-2.5 text-left text-sm transition',
-						selectedId === region.id
-							? 'bg-[#fef3c7] text-[#92400e]'
-							: 'bg-[#f7f9fc] hover:bg-[#fef3c7] hover:text-[#92400e]'
-					)}
-				>
-					{#if regionHeat}
+	{#if heat}
+		<div
+			class="pointer-events-none absolute right-3 bottom-3 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[11px] shadow-lg"
+		>
+			<p class="mb-1.5 font-semibold text-gray-700">Chú giải</p>
+			<div class="flex flex-col gap-1">
+				{#each ['green', 'yellow', 'orange', 'red'] as const as level (level)}
+					<div class="flex items-center gap-1.5">
 						<span
-							class="h-2 w-2 shrink-0 rounded-full"
-							style="background-color: {ALERT_HEX[regionHeat.alertLevel]}"
+							class="h-2.5 w-2.5 rounded-full"
+							style="background-color: {ALERT_HEX[level]}"
 							aria-hidden="true"
 						></span>
-					{/if}
-					<span>{region.id}. {region.name}</span>
-				</button>
-			{/each}
+						<span class="text-gray-600">{ALERT_LABEL[level]}</span>
+					</div>
+				{/each}
+			</div>
+			<div class="mt-2 border-t border-gray-200 pt-1.5 text-gray-500">
+				<p>━ Viền đậm = đo thật</p>
+				<p>┄ Viền đứt = ước tính, tin cậy thấp</p>
+			</div>
 		</div>
-
-		<p class="shrink-0 text-xs text-[#667085]">
-			Các vùng bấm được bo theo biên hiển thị trên ảnh. Bấm vào từng vùng để chọn.
-		</p>
-	</aside>
+	{/if}
 </div>
 
 {#if selectedAnchorEntry}

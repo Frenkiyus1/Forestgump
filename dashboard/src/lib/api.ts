@@ -9,9 +9,11 @@ import type { DienBienForecastEntry } from './types';
  * điểm anchor Điện Biên. Không truyền `location` -> backend trả cả 3.
  */
 export async function fetchDienBienForecast(
-	fetchFn: typeof fetch = fetch
+	fetchFn: typeof fetch = fetch,
+	location?: string
 ): Promise<DienBienForecastEntry[]> {
-	const res = await fetchFn(`${PUBLIC_API_URL}/api/dienbien-forecast`);
+	const params = location ? `?location=${encodeURIComponent(location)}` : '';
+	const res = await fetchFn(`${PUBLIC_API_URL}/api/dienbien-forecast${params}`);
 	if (!res.ok) {
 		throw new Error(`GET /api/dienbien-forecast failed: ${res.status} ${res.statusText}`);
 	}
@@ -41,10 +43,11 @@ export async function fetchChatAnswer(
 }
 
 export async function loadDienBienForecast(
-	fetchFn: typeof fetch = fetch
+	fetchFn: typeof fetch = fetch,
+	location?: string
 ): Promise<{ forecastEntries: DienBienForecastEntry[]; apiError: string | null }> {
 	try {
-		return { forecastEntries: await fetchDienBienForecast(fetchFn), apiError: null };
+		return { forecastEntries: await fetchDienBienForecast(fetchFn, location), apiError: null };
 	} catch (err) {
 		return {
 			forecastEntries: [],

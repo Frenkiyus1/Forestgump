@@ -5,6 +5,6 @@ export const prerender = false;
 
 export const load: PageServerLoad = async ({ fetch, setHeaders }) => {
 	setHeaders({ 'cache-control': 'max-age=60' });
-	const { forecastEntries, apiError } = await loadDienBienForecast(fetch);
+	const { forecastEntries, apiError } = await loadDienBienForecast(fetch, 'tua-chua');
 	return { forecastEntries, apiError };
 };
