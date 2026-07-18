@@ -2,13 +2,17 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import LoginHero from '$lib/components/login-hero.svelte';
-	import { login, loginAsGuest } from '$lib/auth';
+	import { login, loginAsGuest, isOnboardingDone } from '$lib/auth';
 
 	let email = $state('');
 	let phone = $state('');
 	let password = $state('');
 	let error = $state('');
 	let loading = $state(false);
+
+	function afterLogin() {
+		goto(resolve(isOnboardingDone() ? '/' : '/onboarding'));
+	}
 
 	async function onSubmit(e: SubmitEvent) {
 		e.preventDefault();
@@ -20,7 +24,7 @@
 				error = result.error ?? 'Đăng nhập thất bại';
 				return;
 			}
-			goto(resolve('/'));
+			afterLogin();
 		} finally {
 			loading = false;
 		}
@@ -28,7 +32,7 @@
 
 	function continueAsGuest() {
 		loginAsGuest();
-		goto(resolve('/'));
+		afterLogin();
 	}
 </script>
 
