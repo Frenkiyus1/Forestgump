@@ -110,4 +110,11 @@
 		{heat}
 		forecastEntries={data.forecastEntries}
 	/>
+
+	<p class="mt-3 text-center text-[13px] text-gray-400">
+		Ranh giới 130 xã: bản đồ hành chính Điện Biên sau sáp nhập. Rủi ro sạt
+		lở/lũ quét theo xã: mô hình DEM + dữ liệu mưa quan trắc/dự báo
+		(<code class="rounded bg-gray-100 px-1 py-0.5 text-[12px]">docs/dienbien_risk_theo_xa.csv</code>,
+		xem <code class="rounded bg-gray-100 px-1 py-0.5 text-[12px]">ai_engine/train_terrain.py</code>).
+	</p>
 </AppShell>

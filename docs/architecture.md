@@ -127,3 +127,14 @@ sẵn, hoặc cần dữ liệu chưa có:
   (hiện chỉ mô phỏng payload qua `/api/mock-notify`).
 - Firmware/IoT thật (ESP32 + cảm biến) nếu dự án mở rộng sang đo đạc tại
   hiện trường thay vì chỉ dùng dự báo thời tiết công khai.
+
+## 8. Dataset & nguồn dữ liệu
+
+| Dataset | Dùng ở đâu | Vai trò |
+|---|---|---|
+| Open-Meteo Forecast API | `backend/src/weather-ingest.ts` | Dự báo thời tiết chính (nguồn quyết định) cho 3 địa điểm demo |
+| Open-Meteo Geocoding/Elevation API | `backend/src/config/locations.ts` | Toạ độ + độ cao 3 địa điểm demo |
+| OpenWeatherMap | `backend/src/weather-openweathermap.ts` | Dự phòng khi Open-Meteo lỗi/timeout (xem mục 2) |
+| NCHMF (trang dự báo công khai) | `backend/src/nchmf-reference.ts` | Đối chiếu tham khảo, chỉ có cho 1 địa điểm (`dbp`, xem mục 5) |
+| `docs/dienbien_risk_theo_xa.csv` | `ai_engine/terrain_features.py`, `ai_engine/train_terrain.py` | Đặc trưng địa hình DEM thật (độ dốc, flow accumulation, TWI, độ cong) + mưa quan trắc/dự báo cho 130 xã Điện Biên, kèm risk score/mức cảnh báo sạt lở (`risk_satlo`) và lũ quét (`risk_luquet`) đã mô hình hoá sẵn. Huấn luyện 2 model XGBoost hồi quy phục vụ `/assess-terrain-risk`, `/assess-terrain-risk-live`, `/terrain-communes` (`ai_engine/terrain_engine.py`) — endpoint **tham khảo**, KHÔNG phải nguồn quyết định chính của `/assess-risk` (xem docstring `train_terrain.py`: nhãn risk trong CSV là chỉ số mô hình hoá, chưa phải thống kê thiệt hại lịch sử) |
+| `dashboard/src/lib/dienbien-hotspots.ts` | Trang bản đồ (`/map`) | Ranh giới hành chính 130 xã Điện Biên sau sáp nhập, auto-generate từ `dien-bien-bo-vung-sat-lo-bien-den/index.html` — dùng để vẽ SVG map, không phải nguồn rủi ro |
