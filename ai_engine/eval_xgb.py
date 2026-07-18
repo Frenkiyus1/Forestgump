@@ -44,7 +44,7 @@ from sklearn.metrics import (
 
 import ml_engine
 from risk_engine import ForecastInput, Hazard, LocationInput, Terrain, compute_risk
-from train_xgb import HAZARDS, RANDOM_SEED, TERRAINS
+from train_xgb import HAZARDS, RANDOM_SEED, sample_scenario
 
 
 def evaluate(n_samples: int) -> dict:
@@ -57,30 +57,12 @@ def evaluate(n_samples: int) -> dict:
     rng = np.random.default_rng(RANDOM_SEED + 1)  # seed khác train_xgb.py -> tập test độc lập
     print(f"Sinh {n_samples} mẫu test (seed khác tập train) + gán nhãn bằng rule engine...")
 
-    # Sinh lại kịch bản thô (không chỉ feature vector) để vừa build_features
-    # (khớp ml_engine) vừa tính risk_score rule engine tham chiếu.
-    forecasts_meta: list[tuple[ForecastInput, Terrain]] = []
-    for _ in range(n_samples):
-        temp_min = float(rng.uniform(-5.0, 32.0))
-        temp_max = temp_min + float(rng.uniform(0.0, 12.0))
-        avg_temp = (temp_min + temp_max) / 2.0
-        precipitation = (
-            float(rng.uniform(0.0, 80.0)) if rng.random() < 0.5 else float(rng.uniform(0.0, 600.0))
-        )
-        rain_12h = float(rng.uniform(0.3, 0.7) * precipitation) if rng.random() < 0.5 else None
-        dew_spread = float(rng.uniform(0.0, 10.0))
-        forecast = ForecastInput(
-            date="2026-01-01",
-            temp_min_c=round(temp_min, 2),
-            temp_max_c=round(temp_max, 2),
-            precipitation_mm=round(precipitation, 2),
-            humidity_pct=round(float(rng.uniform(30.0, 100.0)), 2),
-            dew_point_c=round(avg_temp - dew_spread, 2),
-            wind_speed_kmh=round(float(rng.uniform(0.0, 60.0)), 2),
-            rain_12h_mm=round(rain_12h, 2) if rain_12h is not None else None,
-        )
-        terrain: Terrain = TERRAINS[int(rng.integers(0, len(TERRAINS)))]
-        forecasts_meta.append((forecast, terrain))
+    # Dùng CHUNG sample_scenario với train_xgb.py (chỉ khác seed) để phân phối
+    # lấy mẫu không lệch giữa train và eval — sinh kịch bản thô (không chỉ
+    # feature vector) để vừa build_features vừa tính risk_score tham chiếu.
+    forecasts_meta: list[tuple[ForecastInput, Terrain]] = [
+        sample_scenario(rng) for _ in range(n_samples)
+    ]
 
     # 1 lượt duy nhất qua toàn bộ mẫu: tính nhãn+score rule engine (nguồn tham
     # chiếu) và dự đoán XGBoost cho cả 3 hiểm hoạ cùng lúc, tránh gọi
