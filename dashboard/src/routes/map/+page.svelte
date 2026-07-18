@@ -57,7 +57,7 @@
 		</div>
 	{/if}
 
-	<div class="mb-4 flex flex-col gap-3">
+	<div class="mb-2 flex flex-col gap-3">
 		<div class="flex flex-wrap items-center gap-2">
 			{#each HAZARDS as hazard (hazard)}
 				<button
