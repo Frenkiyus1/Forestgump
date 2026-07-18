@@ -7,7 +7,6 @@
 	import logo from '$lib/assets/logo.png';
 	import { getSession, clearSession } from '$lib/auth';
 	import LanguageToggle from './language-toggle.svelte';
-	import VersionSwitcher from './version-switcher.svelte';
 	import ChatWidget from './chat-widget.svelte';
 	import type { Bulletin } from '$lib/types';
 
@@ -230,7 +229,6 @@
 					</svg>
 				</button>
 				<div class="ml-auto flex items-center gap-2">
-					<VersionSwitcher />
 					{#if onLangChange}
 						<LanguageToggle {lang} onChange={onLangChange} />
 					{/if}
