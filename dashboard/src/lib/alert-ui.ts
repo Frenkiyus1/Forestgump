@@ -4,6 +4,7 @@ import type { AlertLevel, AlertType } from './types';
 export const ALERT_LABEL: Record<AlertLevel, string> = {
 	green: 'An toàn',
 	yellow: 'Cảnh báo',
+	orange: 'Nguy cơ cao',
 	red: 'Nguy hiểm'
 };
 
@@ -11,6 +12,7 @@ export const ALERT_LABEL: Record<AlertLevel, string> = {
 export const ALERT_STRIP: Record<AlertLevel, string> = {
 	green: 'bg-green-500',
 	yellow: 'bg-yellow-500',
+	orange: 'bg-orange-500',
 	red: 'bg-red-600'
 };
 
@@ -18,6 +20,7 @@ export const ALERT_STRIP: Record<AlertLevel, string> = {
 export const ALERT_BADGE: Record<AlertLevel, string> = {
 	green: 'bg-green-50 text-green-700',
 	yellow: 'bg-yellow-50 text-yellow-700',
+	orange: 'bg-orange-50 text-orange-700',
 	red: 'bg-red-50 text-red-700'
 };
 
@@ -25,6 +28,7 @@ export const ALERT_BADGE: Record<AlertLevel, string> = {
 export const ALERT_HEX: Record<AlertLevel, string> = {
 	green: '#22c55e',
 	yellow: '#eab308',
+	orange: '#f97316',
 	red: '#dc2626'
 };
 

@@ -34,7 +34,11 @@
 		<span
 			class={clsx(
 				'text-xs font-medium',
-				event.level === 'red' ? 'text-red-600' : 'text-yellow-600'
+				event.level === 'red'
+					? 'text-red-600'
+					: event.level === 'orange'
+						? 'text-orange-600'
+						: 'text-yellow-600'
 			)}
 		>
 			{ALERT_LABEL[event.level]}
