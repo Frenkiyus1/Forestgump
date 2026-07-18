@@ -12,9 +12,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import AppShell from '$lib/components/app-shell.svelte';
-	import DienBienMap, {
-		HAZARD_HEATMAP_ANCHOR_NAMES
-	} from '$lib/components/map/dien-bien-map.svelte';
+	import DienBienMap from '$lib/components/map/dien-bien-map.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -35,15 +33,7 @@
 		const region = HOTSPOT_REGIONS.find((item) => item.id === id) ?? null;
 		if (!region) return;
 
-		if (HAZARD_HEATMAP_ANCHOR_NAMES.has(region.name)) {
-			const slug =
-				region.name === 'Phường Điện Biên Phủ'
-					? 'dien-bien-phu'
-					: region.name === 'Xã Mường Nhé'
-						? 'muong-nhe'
-						: 'tua-chua';
-			goto(resolve(`/map/${slug}`));
-		}
+		goto(resolve(`/map/${String(id)}`));
 	}
 
 	function formatDay(iso: string): string {
