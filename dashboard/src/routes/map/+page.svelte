@@ -96,6 +96,10 @@
 		</div>
 	</div>
 
+	<h1 class="mb-3 text-2xl font-semibold tracking-tight text-gray-900">
+		Bản đồ Điện Biên
+	</h1>
+
 	<DienBienMap
 		regions={HOTSPOT_REGIONS}
 		onSelect={selectRegion}

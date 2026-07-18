@@ -97,7 +97,7 @@
 	</svg>
 {/snippet}
 
-<div class="relative min-h-screen bg-cream font-[Inter] text-gray-900">
+<div class={clsx('relative bg-cream font-[Inter] text-gray-900', noHeader ? 'min-h-0' : 'min-h-screen')}>
 	<!-- shared ambient background -->
 	<div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
 		<div
@@ -251,10 +251,10 @@
 		<main
 			class={clsx(
 				'relative z-10 mx-auto max-w-6xl',
-				compact
-					? 'flex flex-col px-6 pt-1 pb-0 lg:h-[calc(100vh-64px)] lg:overflow-y-auto'
-					: noHeader
-						? 'flex flex-col px-6 pt-1 pb-0 lg:h-screen lg:overflow-y-auto'
+				noHeader
+					? 'flex flex-col px-6 pt-1 pb-0 lg:h-screen lg:overflow-y-auto'
+					: compact
+						? 'flex flex-col px-6 pt-1 pb-0 lg:h-[calc(100vh-64px)] lg:overflow-y-auto'
 						: 'px-6 pt-10 pb-20'
 			)}
 		>
