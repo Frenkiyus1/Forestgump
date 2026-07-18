@@ -14,7 +14,8 @@
 		children,
 		lang = 'vi',
 		onLangChange,
-		compact = false
+		compact = false,
+		noHeader = false
 	}: {
 		children: Snippet;
 		lang?: Bulletin['lang'];
@@ -22,6 +23,8 @@
 		/** Fits main content to the viewport height on large screens (no page scroll) — used by
 		 * pages like /map that manage their own internal scroll regions. */
 		compact?: boolean;
+		/** Hides the sticky top bar — used by pages that want full-bleed content. */
+		noHeader?: boolean;
 	} = $props();
 
 	const path = $derived(page.url.pathname);
@@ -210,42 +213,46 @@
 
 	<!-- content column -->
 	<div class="lg:pl-64">
-		<!-- slim top bar -->
-		<header
-			class="sticky top-0 z-30 border-b border-black/[0.04] bg-white/70 backdrop-blur-xl lg:bg-transparent lg:backdrop-blur-none"
-		>
-			<div class="flex items-center gap-3 px-6 py-3.5">
-				<button
-					type="button"
-					aria-label="Mở menu"
-					class="grid h-9 w-9 place-items-center rounded-lg text-gray-500 transition hover:bg-cream/70 lg:hidden"
-					onclick={() => (mobileOpen = true)}
-				>
-					<svg
-						viewBox="0 0 24 24"
-						class="h-5 w-5"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						aria-hidden="true"
+		{#if !noHeader}
+			<!-- slim top bar -->
+			<header
+				class="sticky top-0 z-30 border-b border-black/[0.04] bg-white/70 backdrop-blur-xl lg:bg-transparent lg:backdrop-blur-none"
+			>
+				<div class="flex items-center gap-3 px-6 py-3.5">
+					<button
+						type="button"
+						aria-label="Mở menu"
+						class="grid h-9 w-9 place-items-center rounded-lg text-gray-500 transition hover:bg-cream/70 lg:hidden"
+						onclick={() => (mobileOpen = true)}
 					>
-						<path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="round" />
-					</svg>
-				</button>
-				<div class="ml-auto flex items-center gap-2">
-					{#if onLangChange}
-						<LanguageToggle {lang} onChange={onLangChange} />
-					{/if}
+						<svg
+							viewBox="0 0 24 24"
+							class="h-5 w-5"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							aria-hidden="true"
+						>
+							<path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="round" />
+						</svg>
+					</button>
+					<div class="ml-auto flex items-center gap-2">
+						{#if onLangChange}
+							<LanguageToggle {lang} onChange={onLangChange} />
+						{/if}
+					</div>
 				</div>
-			</div>
-		</header>
+			</header>
+		{/if}
 
 		<main
 			class={clsx(
 				'relative z-10 mx-auto max-w-6xl',
 				compact
 					? 'flex flex-col px-6 pt-1 pb-4 lg:h-[calc(100vh-64px)] lg:overflow-y-auto'
-					: 'px-6 pt-10 pb-20'
+					: noHeader
+						? 'flex flex-col px-6 pt-1 pb-4 lg:h-screen lg:overflow-y-auto'
+						: 'px-6 pt-10 pb-20'
 			)}
 		>
 			{@render children()}
