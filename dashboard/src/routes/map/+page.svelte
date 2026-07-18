@@ -55,7 +55,7 @@
 
 	{#if data.apiError}
 		<div
-			class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[17px] text-amber-800"
+			class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[15px] text-amber-800"
 		>
 			<p class="font-medium">
 				Chưa kết nối được backend — đang hiển thị bản đồ ở chế độ mặc định (xanh lá).
@@ -71,7 +71,7 @@
 					onclick={() => (selectedHazard = hazard)}
 					aria-pressed={selectedHazard === hazard}
 					class={clsx(
-						'rounded-full px-3 py-1.5 text-[17px] font-medium transition',
+						'rounded-full px-3 py-1.5 text-[15px] font-medium transition',
 						selectedHazard === hazard
 							? 'bg-gray-900 text-white'
 							: 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -89,7 +89,7 @@
 						onclick={() => (selectedDayIndex = i)}
 						aria-pressed={selectedDayIndex === i}
 						class={clsx(
-							'rounded-lg px-2.5 py-1 text-[17px] font-medium transition',
+							'rounded-lg px-2.5 py-1 text-[15px] font-medium transition',
 							selectedDayIndex === i
 								? 'bg-accent text-white'
 								: 'bg-gray-100 text-gray-600 hover:bg-gray-200'
