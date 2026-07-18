@@ -47,7 +47,7 @@
 
 <AppShell compact={true} noHeader={true}>
 	<header class="mb-3 text-center">
-		<h1 class="text-[22px] font-semibold tracking-tight text-gray-900">
+		<h1 class="text-[28px] font-semibold tracking-tight text-gray-900">
 			Bản đồ tỉnh Điện Biên (sau sát nhập)
 		</h1>
 		<div class="mx-auto mt-1.5 h-0.5 w-16 rounded-full bg-gradient-to-r from-transparent via-accent to-transparent"></div>
