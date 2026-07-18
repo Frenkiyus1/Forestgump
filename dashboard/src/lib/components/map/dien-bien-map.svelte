@@ -286,7 +286,7 @@
 						hidePin();
 					}}
 					class={clsx(
-						'flex items-center gap-1 rounded border-0 px-1.5 py-0.5 text-left text-[11px] transition',
+						'flex items-center gap-2 rounded border-0 px-3 py-1.5 text-left text-[33px] transition',
 						selectedId === region.id
 							? 'bg-[#fef3c7] text-[#92400e]'
 							: 'bg-[#f7f9fc] hover:bg-[#fef3c7] hover:text-[#92400e]'
@@ -294,7 +294,7 @@
 				>
 					{#if regionHeat}
 						<span
-							class="h-1 w-1 shrink-0 rounded-full"
+							class="h-3 w-3 shrink-0 rounded-full"
 							style="background-color: {ALERT_HEX[regionHeat.alertLevel]}"
 							aria-hidden="true"
 						></span>
