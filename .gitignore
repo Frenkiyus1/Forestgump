@@ -29,3 +29,5 @@ ai_engine/flood_model.json
 # Log chạy local (uvicorn redirect)
 ai_engine/*.out
 ai_engine/*.err
+# Logs
+*.log
