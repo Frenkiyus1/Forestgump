@@ -61,16 +61,29 @@
 
 <svelte:head><title>Map — Điện Biên — ForestGump</title></svelte:head>
 
-<AppShell compact>
-	<div class="flex h-full min-h-0 flex-1 flex-col">
-		<div class="mb-3 shrink-0">
-			<nav class="mb-1 flex items-center gap-1.5 text-xs text-gray-400">
+<AppShell>
+	{#if data.apiError}
+		<div
+			class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+		>
+			<p class="font-medium">
+				Chưa kết nối được backend — đang hiển thị bản đồ ở chế độ mặc định (xanh lá).
+			</p>
+			<p class="mt-1 text-amber-700">{data.apiError}</p>
+		</div>
+	{/if}
+
+	<div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+		<div class="flex flex-wrap gap-1.5" role="group" aria-label="Chọn loại hiểm hoạ">
+			{#each HAZARDS as hazard (hazard)}
 				<button
 					type="button"
 					onclick={backToOverview}
 					class={clsx(
-						'transition hover:text-gray-600',
-						!selectedRegion && 'font-semibold text-gray-900'
+						'rounded-full px-3 py-1.5 text-sm font-medium transition',
+						selectedHazard === hazard
+							? 'bg-gray-900 text-white'
+							: 'bg-gray-100 text-gray-600 hover:bg-gray-200'
 					)}
 				>
 					Điện Biên
@@ -186,11 +199,4 @@
 			{/if}
 		</div>
 
-		<p class="mt-2 shrink-0 text-[11px] text-gray-400">
-			Chỉ 3 xã có viền đậm (Mường Nhé, Tủa Chùa, Điện Biên Phủ) là dữ liệu đo thật từ trạm quan
-			trắc. 42 xã còn lại được tô màu ước tính theo vùng địa hình từ 3 điểm quan trắc này, không
-			phải đo tại từng xã — xem chi tiết cách suy ra trong
-			<code class="rounded bg-gray-100 px-1 py-0.5">docs/dienbien-phase2-terrain.md</code>.
-		</p>
-	</div>
 </AppShell>
