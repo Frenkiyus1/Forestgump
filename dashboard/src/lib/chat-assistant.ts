@@ -1,3 +1,4 @@
+import { fetchChatAnswer } from './api';
 import { getForecast } from './weather';
 import { generateBulletin } from './bulletin';
 import { LOCATIONS } from './locations';
@@ -12,14 +13,26 @@ function findMentionedLocation(question: string) {
 }
 
 /**
- * Trả lời câu hỏi dựa trên dữ liệu forecast/bulletin mock hiện có (không gọi
- * backend/LLM thật — ForestGump chưa có backend). Luôn kèm lý do (nguồn gốc
- * cảnh báo), theo đúng nguyên tắc "không hộp đen" của dự án.
- *
- * TODO(teammate): thay bằng LLM thật (vd. Gemini) khi có backend `/api/chat` —
- * giữ nguyên chữ ký hàm để UI không cần đổi.
+ * Trả lời câu hỏi tự do — ưu tiên gọi backend POST /api/chat (Gemini, neo vào
+ * dữ liệu forecast/risk thật). Nếu backend chưa cấu hình GEMINI_API_KEY hoặc
+ * không kết nối được, fallback về câu trả lời rule-based cục bộ
+ * (answerChatFallback) thay vì để chat widget crash.
  */
 export async function answerChat(question: string): Promise<string> {
+	try {
+		return await fetchChatAnswer(question);
+	} catch (err) {
+		console.error('[chat] Backend /api/chat không khả dụng, dùng fallback cục bộ:', err);
+		return answerChatFallback(question);
+	}
+}
+
+/**
+ * Trả lời rule-based cục bộ dựa trên dữ liệu forecast thật (qua weather.ts) —
+ * không gọi LLM. Luôn kèm lý do (nguồn gốc cảnh báo), theo đúng nguyên tắc
+ * "không hộp đen" của dự án. Dùng khi backend/Gemini không khả dụng.
+ */
+async function answerChatFallback(question: string): Promise<string> {
 	const mentioned = findMentionedLocation(question);
 	const targets = mentioned ? [mentioned] : LOCATIONS;
 	const forecasts = await Promise.all(targets.map((l) => getForecast(l.id)));
