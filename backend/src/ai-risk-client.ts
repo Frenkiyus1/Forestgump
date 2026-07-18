@@ -1,9 +1,8 @@
 // Client gọi AI Engine POST /assess-risk (đánh giá rủi ro Điện Biên: rét
-// đậm/rét hại, mưa lớn/lũ quét, sương mù dày). KHÔNG dùng chung biến
-// AI_ENGINE_URL trong index.ts — biến đó trỏ .../predict cho luồng độ mặn
-// cũ. Khác với /predict, /assess-risk là rule-based và KHÔNG có mock mode ở
-// phía ai_engine (xem app.py) — lỗi ở đây nghĩa là ai_engine thật sự
-// down/lỗi mạng, nên hàm dưới đây ném lỗi rõ ràng thay vì âm thầm fallback.
+// đậm/rét hại, mưa lớn/lũ quét, sương mù dày). /assess-risk là rule-based
+// và KHÔNG có mock mode ở phía ai_engine (xem app.py) — lỗi ở đây nghĩa là
+// ai_engine thật sự down/lỗi mạng, nên hàm dưới đây ném lỗi rõ ràng thay vì
+// âm thầm fallback.
 
 import 'dotenv/config';
 import type { DienBienLocation } from './config/locations.js';
@@ -18,7 +17,7 @@ export type AssessRiskResult = AssessRiskResponse;
 /**
  * Đánh giá rủi ro + bản tin cảnh báo cho 1 địa điểm qua toàn bộ dự báo nhiều
  * ngày đã cho. Ném lỗi nếu timeout/HTTP lỗi/sai định dạng phản hồi — không
- * mock ngầm (khác luồng độ mặn /predict).
+ * mock ngầm.
  *
  * `elevationGridM` (độ cao ô lưới Open-Meteo, từ LocationWeather) cho phép AI
  * Engine hiệu chỉnh nhiệt độ về độ cao thực tế của địa điểm (downscale.py);

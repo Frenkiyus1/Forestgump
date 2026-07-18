@@ -1,8 +1,7 @@
 <!--
-	Decorative left hero for the login page. Same navy/teal/dusty-blue palette
-	and layout as the original ForestGump login hero (gold #d4a437 + cream
-	#f4f1ea + sage #87a96b as low-opacity accents) — only the wordmark and
-	copy are re-themed for weather instead of salinity.
+	Decorative left hero for the login page. Navy/teal/dusty-blue palette
+	(gold #d4a437 + cream #f4f1ea + sage #87a96b as low-opacity accents),
+	wordmark and copy themed for weather early warning.
 	Five decorative elements only: 3 organic blobs, 1 contour-line group, 1 grain overlay.
 -->
 <script lang="ts">

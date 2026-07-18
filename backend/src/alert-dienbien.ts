@@ -1,6 +1,6 @@
 // Logic phân loại mức cảnh báo cho hệ thống thời tiết sớm Điện Biên — tách
-// riêng để tái dùng và unit-test, theo đúng pattern của backend/src/alert.ts
-// (độ mặn). 3 hiểm hoạ: rét đậm/rét hại, mưa lớn/lũ quét, sương mù dày.
+// riêng để tái dùng và unit-test. 3 hiểm hoạ: rét đậm/rét hại, mưa lớn/lũ
+// quét, sương mù dày.
 //
 // QUAN TRỌNG — nguồn ngưỡng & giới hạn đã biết (đọc trước khi sửa số liệu):
 // Đây KHÔNG phải bảng "cấp độ rủi ro thiên tai" pháp lý đầy đủ theo Quyết

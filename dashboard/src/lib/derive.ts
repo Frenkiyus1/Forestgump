@@ -96,7 +96,7 @@ export function summarize(details: LocationDetail[]): DashboardSummary {
 }
 
 // Threshold-crossing event for the Alerts history page. Only fires at
-// caution (yellow) or danger (red) — never green, same rule as ForestGump.
+// caution (yellow) or danger (red) — never green.
 export interface WeatherAlertEvent {
 	id: string;
 	locationId: string;
