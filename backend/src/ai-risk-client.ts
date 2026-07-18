@@ -19,10 +19,15 @@ export type AssessRiskResult = AssessRiskResponse;
  * Đánh giá rủi ro + bản tin cảnh báo cho 1 địa điểm qua toàn bộ dự báo nhiều
  * ngày đã cho. Ném lỗi nếu timeout/HTTP lỗi/sai định dạng phản hồi — không
  * mock ngầm (khác luồng độ mặn /predict).
+ *
+ * `elevationGridM` (độ cao ô lưới Open-Meteo, từ LocationWeather) cho phép AI
+ * Engine hiệu chỉnh nhiệt độ về độ cao thực tế của địa điểm (downscale.py);
+ * bỏ trống (nguồn OpenWeatherMap) thì AI Engine bỏ qua hiệu chỉnh.
  */
 export async function assessRisk(
   location: DienBienLocation,
-  daily: DailyForecast[]
+  daily: DailyForecast[],
+  elevationGridM?: number
 ): Promise<AssessRiskResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AI_ENGINE_TIMEOUT_MS);
@@ -47,6 +52,16 @@ export async function assessRisk(
           humidity_pct: d.humidityPct,
           dew_point_c: d.dewPointC,
           wind_speed_kmh: d.windSpeedKmh,
+          // Các trường tổng hợp từ hourly Open-Meteo (undefined -> JSON bỏ
+          // field -> AI Engine nhận None và tự bỏ qua tín hiệu tương ứng).
+          elevation_grid_m: elevationGridM,
+          rain_12h_mm: d.rain12hMaxMm,
+          rain_1h_mm: d.rain1hMaxMm,
+          visibility_min_m: d.visibilityMinM,
+          dew_spread_min_c: d.dewSpreadMinC,
+          humidity_max_pct: d.humidityMaxPct,
+          wind_gusts_kmh: d.windGustsMaxKmh,
+          soil_moisture_0_1: d.soilMoisture01,
         })),
       }),
     });

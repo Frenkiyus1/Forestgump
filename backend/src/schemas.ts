@@ -66,6 +66,8 @@ export const chatRequestSchema = z.strictObject({
  * Open-Meteo có thể thêm field mới bất kỳ lúc nào, strictObject sẽ vỡ khi đó.
  */
 export const openMeteoForecastSchema = z.object({
+  /** Độ cao ô lưới (m) Open-Meteo dùng để nội suy dự báo — cho downscaling nhiệt độ. */
+  elevation: z.number().optional(),
   current: z.object({
     temperature_2m: z.number(),
   }),
@@ -77,6 +79,17 @@ export const openMeteoForecastSchema = z.object({
     relative_humidity_2m_mean: z.array(z.number()),
     dew_point_2m_mean: z.array(z.number()),
     wind_speed_10m_mean: z.array(z.number()),
+  }),
+  // Chuỗi hourly có thể chứa null (giờ ngoài phạm vi model) — nullable từng phần tử.
+  hourly: z.object({
+    time: z.array(z.string()),
+    precipitation: z.array(z.number().nullable()),
+    visibility: z.array(z.number().nullable()),
+    temperature_2m: z.array(z.number().nullable()),
+    dew_point_2m: z.array(z.number().nullable()),
+    relative_humidity_2m: z.array(z.number().nullable()),
+    wind_gusts_10m: z.array(z.number().nullable()),
+    soil_moisture_0_to_1cm: z.array(z.number().nullable()),
   }),
 });
 
