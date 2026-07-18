@@ -21,6 +21,49 @@ export const forecastResponseSchema = z.strictObject({
 });
 export type ForecastResponse = z.infer<typeof forecastResponseSchema>;
 
+/** 1 hiểm hoạ trong đánh giá rủi ro Điện Biên — khớp risk_engine.HazardRisk. */
+export const hazardRiskSchema = z.strictObject({
+  hazard: z.enum(['cold_damage', 'heavy_rain_flood', 'fog']),
+  alert_level: z.enum(['green', 'yellow', 'orange', 'red']),
+  risk_score: z.number().finite(),
+  detail: z.string(),
+});
+export type HazardRisk = z.infer<typeof hazardRiskSchema>;
+
+/** Đánh giá rủi ro 1 ngày (3 hiểm hoạ) — khớp risk_engine.RiskAssessment. */
+export const riskAssessmentSchema = z.strictObject({
+  location_code: z.string(),
+  date: z.string(),
+  hazards: z.array(hazardRiskSchema),
+});
+
+/** Risk + bản tin cảnh báo 1 ngày — khớp app.DayAssessment. */
+export const dayAssessmentSchema = z.strictObject({
+  risk: riskAssessmentSchema,
+  bulletin: z.string(),
+});
+
+/** Phản hồi đầy đủ từ POST /assess-risk (ai_engine) — khớp app.AssessRiskResponse. */
+export const assessRiskResponseSchema = z.strictObject({
+  location_code: z.string(),
+  days: z.array(dayAssessmentSchema),
+});
+export type AssessRiskResponse = z.infer<typeof assessRiskResponseSchema>;
+
+/** Query của GET /api/dienbien-forecast — thiếu `location` -> trả cả 3 địa điểm. */
+export const dienbienForecastQuerySchema = z.strictObject({
+  location: z.string().min(1).optional(),
+});
+
+/**
+ * Query của GET /api/bulletins. `activeOnly` là chuỗi vì query param luôn là
+ * string — route handler tự diễn giải (mặc định true khi thiếu/không gửi).
+ */
+export const bulletinsQuerySchema = z.strictObject({
+  location: z.string().min(1).optional(),
+  activeOnly: z.enum(['true', 'false']).optional(),
+});
+
 /** Query của GET /api/latest và các endpoint chỉ cần mã trạm. */
 export const stationQuerySchema = z.strictObject({
   station: z.string().min(1, 'Missing required query param: station'),
@@ -91,3 +134,11 @@ export const chatBodySchema = z.strictObject({
 });
 
 export type ChatTurn = z.infer<typeof chatTurnSchema>;
+
+/** Phản hồi từ Satellite Engine POST /predict (segmentation ảnh vệ tinh). */
+export const satellitePredictResponseSchema = z.strictObject({
+  job_id: z.string(),
+  mask_path: z.string(),
+  target_area_pct: z.number().finite(),
+});
+export type SatellitePredictResponse = z.infer<typeof satellitePredictResponseSchema>;
