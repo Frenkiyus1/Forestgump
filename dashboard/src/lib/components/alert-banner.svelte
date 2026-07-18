@@ -21,6 +21,11 @@
 			ring: 'ring-amber-800/20',
 			label: 'CẢNH BÁO'
 		},
+		orange: {
+			bg: 'bg-orange-600',
+			ring: 'ring-orange-800/20',
+			label: 'NGUY CƠ CAO'
+		},
 		red: {
 			bg: 'bg-red-600',
 			ring: 'ring-red-900/30',
