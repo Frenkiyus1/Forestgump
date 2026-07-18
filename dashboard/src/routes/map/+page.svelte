@@ -46,16 +46,16 @@
 <svelte:head><title>Map — Điện Biên — ForestGump</title></svelte:head>
 
 <AppShell compact={true} noHeader={true}>
-	<header class="mb-4 text-center">
+	<header class="mb-3 text-center">
 		<h1 class="text-2xl font-semibold tracking-tight text-gray-900">
 			Bản đồ tỉnh Điện Biên (sau sát nhập)
 		</h1>
-		<div class="mx-auto mt-2 h-0.5 w-16 rounded-full bg-gradient-to-r from-transparent via-accent to-transparent"></div>
+		<div class="mx-auto mt-1.5 h-0.5 w-16 rounded-full bg-gradient-to-r from-transparent via-accent to-transparent"></div>
 	</header>
 
 	{#if data.apiError}
 		<div
-			class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+			class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
 		>
 			<p class="font-medium">
 				Chưa kết nối được backend — đang hiển thị bản đồ ở chế độ mặc định (xanh lá).
@@ -64,9 +64,8 @@
 		</div>
 	{/if}
 
-	<div class="mb-4 flex flex-col gap-3">
-		<div class="flex flex-wrap items-center gap-2">
-			{#each HAZARDS as hazard (hazard)}
+	<div class="mb-3 flex flex-wrap items-center gap-2">
+		{#each HAZARDS as hazard (hazard)}
 				<button
 					type="button"
 					onclick={() => (selectedHazard = hazard)}
@@ -100,7 +99,6 @@
 					</button>
 				{/each}
 			{/if}
-		</div>
 	</div>
 
 	<DienBienMap
