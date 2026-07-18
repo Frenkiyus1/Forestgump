@@ -64,7 +64,8 @@ function toDayForecast(day: DienBienForecastDay): DayForecast {
 		// ngày làm giá trị xấp xỉ (sẽ overestimate với mưa rải rác nhiều giờ).
 		rainMax1h: day.precipitationMm,
 		visibilityMin: FOG_ALERT_TO_VISIBILITY_M[fogRisk?.alert_level ?? 'green'],
-		humidityMax: day.humidityPct
+		humidityMax: day.humidityPct,
+		bulletin: day.bulletin
 	};
 }
 
@@ -81,7 +82,8 @@ function findActiveAlert(days: DienBienForecastDay[]): Alert | null {
 				level: worst.alert_level,
 				type: HAZARD_TO_ALERT_TYPE[worst.hazard],
 				reason: worst.detail,
-				hoursAhead: i * 24 // dự báo theo ngày — quy ước: ngày i ~ i*24h tới
+				hoursAhead: i * 24, // dự báo theo ngày — quy ước: ngày i ~ i*24h tới
+				bulletin: days[i].bulletin
 			};
 		}
 	}

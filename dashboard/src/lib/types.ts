@@ -43,6 +43,9 @@ export type DayForecast = {
 	rainMax1h: number; // mm/h, peak intensity
 	visibilityMin: number; // m
 	humidityMax: number; // %
+	// Bản tin thật do ai_engine sinh cho ngày này (template cố định, xem
+	// CLAUDE.md mục 4) — optional vì fixture mock (mock.ts) không có field này.
+	bulletin?: string;
 };
 
 export type Alert = {
@@ -50,6 +53,9 @@ export type Alert = {
 	type: AlertType;
 	reason: string; // "Mưa 120mm/24h, đất đã bão hòa sau 3 ngày mưa"
 	hoursAhead: number;
+	// Bản tin thật (đủ headline+action) do ai_engine sinh cho ngày có cảnh báo
+	// này — optional vì mock.ts không tạo Alert nào có field này.
+	bulletin?: string;
 };
 
 export type Forecast = {
