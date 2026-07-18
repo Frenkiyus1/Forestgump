@@ -20,6 +20,8 @@ from downscale import downscale_temperature, fog_risk_factor
 from thresholds import (
     COLD_DAMP_MAX_C,
     COLD_SEVERE_MAX_C,
+    DENSE_FOG_MAX_VISIBILITY_M,
+    FOG_MAX_VISIBILITY_M,
     FOG_RISK_FACTOR_RED_MIN,
     FOG_RISK_FACTOR_YELLOW_MIN,
     HEAVY_RAIN_L1_MIN_24H_MM,
@@ -31,6 +33,7 @@ from thresholds import (
     TERRAIN_FLOOD_MULTIPLIER,
     AlertLevel,
     classify_cold_damage,
+    classify_fog,
     classify_heavy_rain_flood_risk,
 )
 
@@ -59,10 +62,16 @@ class ForecastInput(BaseModel):
     humidity_pct: float
     dew_point_c: float
     wind_speed_kmh: float
-    # Tuỳ chọn — pipeline Phase 1 hiện CHƯA cung cấp các trường này:
+    # Tuỳ chọn — tổng hợp từ dữ liệu HOURLY Open-Meteo (backend/src/weather-ingest.ts,
+    # aggregateHourlyByDay). None khi nguồn là OpenWeatherMap dự phòng:
     elevation_grid_m: Optional[float] = None  # độ cao ô lưới Open-Meteo dùng để dự báo
-    rain_12h_mm: Optional[float] = None
+    rain_12h_mm: Optional[float] = None  # mưa 12h trượt lớn nhất trong ngày
     rain_1h_mm: Optional[float] = None  # tham khảo — CHƯA có ngưỡng mm/1h chính thức xác minh được
+    visibility_min_m: Optional[float] = None  # tầm nhìn thấp nhất trong ngày — cho classify_fog (WMO)
+    dew_spread_min_c: Optional[float] = None  # chênh nhiệt-điểm sương nhỏ nhất trong ngày
+    humidity_max_pct: Optional[float] = None  # độ ẩm cao nhất trong ngày
+    wind_gusts_kmh: Optional[float] = None  # gió giật mạnh nhất trong ngày
+    soil_moisture_0_1: Optional[float] = None  # độ ẩm đất 0-1cm trung bình ngày (m³/m³)
 
 
 class HazardRisk(BaseModel):
@@ -86,6 +95,21 @@ def _escalate(level: AlertLevel) -> AlertLevel:
     """Nâng 1 cấp cảnh báo (tối đa 'red')."""
     idx = _ALERT_LEVEL_ORDER.index(level)
     return _ALERT_LEVEL_ORDER[min(len(_ALERT_LEVEL_ORDER) - 1, idx + 1)]
+
+
+# Khoảng điểm [min, max] của từng band — để kẹp risk_score về đúng band của
+# alert_level cuối cùng khi 2 tín hiệu (tầm nhìn/heuristic) cho điểm lệch band.
+_LEVEL_SCORE_RANGE: dict[AlertLevel, tuple[float, float]] = {
+    "green": (0.0, SCORE_YELLOW_MIN - 0.1),
+    "yellow": (SCORE_YELLOW_MIN, SCORE_ORANGE_MIN - 0.1),
+    "orange": (SCORE_ORANGE_MIN, SCORE_RED_MIN - 0.1),
+    "red": (SCORE_RED_MIN, 100.0),
+}
+
+
+def _clamp_score_to_level(score: float, level: AlertLevel) -> float:
+    lo, hi = _LEVEL_SCORE_RANGE[level]
+    return _clamp(score, lo, hi)
 
 
 def _cold_damage_risk(forecast: ForecastInput) -> HazardRisk:
@@ -158,24 +182,75 @@ def _heavy_rain_flood_risk(forecast: ForecastInput, terrain: Terrain) -> HazardR
     )
 
 
+def _fog_visibility_score(visibility_m: float) -> float:
+    """Quy đổi tầm nhìn (m) thành điểm 0-100 liên tục, neo vào 2 mốc WMO
+    (FOG_MAX_VISIBILITY_M / DENSE_FOG_MAX_VISIBILITY_M) và thang điểm chung
+    SCORE_* — cùng cách nội suy tuyến tính như mưa lớn."""
+    if visibility_m >= FOG_MAX_VISIBILITY_M:
+        # Trên ngưỡng sương mù: giảm dần về 0 khi tầm nhìn tới 5km.
+        frac = _clamp((visibility_m - FOG_MAX_VISIBILITY_M) / 4000.0, 0.0, 1.0)
+        return SCORE_YELLOW_MIN * (1.0 - frac)
+    if visibility_m >= DENSE_FOG_MAX_VISIBILITY_M:
+        span = FOG_MAX_VISIBILITY_M - DENSE_FOG_MAX_VISIBILITY_M
+        frac = (FOG_MAX_VISIBILITY_M - visibility_m) / span
+        return SCORE_YELLOW_MIN + frac * (SCORE_RED_MIN - SCORE_YELLOW_MIN)
+    frac = _clamp((DENSE_FOG_MAX_VISIBILITY_M - visibility_m) / DENSE_FOG_MAX_VISIBILITY_M, 0.0, 1.0)
+    return SCORE_RED_MIN + frac * (100.0 - SCORE_RED_MIN)
+
+
 def _fog_risk(forecast: ForecastInput, terrain: Terrain) -> HazardRisk:
     avg_temp_c = (forecast.temp_min_c + forecast.temp_max_c) / 2.0
-    factor = fog_risk_factor(forecast.humidity_pct, avg_temp_c, forecast.dew_point_c, terrain)
+
+    # Đầu vào hourly (nếu có) sát vật lý sương mù hơn trung bình ngày: sương mù
+    # hình thành lúc ẩm NHẤT / chênh nhiệt-điểm sương NHỎ NHẤT (đêm/rạng sáng).
+    spread_c = (
+        forecast.dew_spread_min_c
+        if forecast.dew_spread_min_c is not None
+        else avg_temp_c - forecast.dew_point_c
+    )
+    humidity = (
+        forecast.humidity_max_pct if forecast.humidity_max_pct is not None else forecast.humidity_pct
+    )
+    factor = fog_risk_factor(humidity, avg_temp_c, avg_temp_c - spread_c, terrain)
 
     if factor >= FOG_RISK_FACTOR_RED_MIN:
-        level: AlertLevel = "red"
+        factor_level: AlertLevel = "red"
     elif factor >= FOG_RISK_FACTOR_YELLOW_MIN:
-        level = "yellow"
+        factor_level = "yellow"
     else:
-        level = "green"
+        factor_level = "green"
+    factor_score = _clamp(factor * 100.0)
 
-    score = _clamp(factor * 100.0)
-    detail = (
-        f"Hệ số nguy cơ sương mù {factor:.2f} (độ ẩm {forecast.humidity_pct:.0f}%, "
-        f"chênh nhiệt-điểm sương {avg_temp_c - forecast.dew_point_c:.1f}°C, địa hình '{terrain}') "
-        "— ước tính, KHÔNG dựa trên tầm nhìn đo thực tế."
-    )
-    return HazardRisk(hazard="fog", alert_level=level, risk_score=round(score, 1), detail=detail)
+    if forecast.visibility_min_m is not None:
+        # Có tầm nhìn dự báo (hourly Open-Meteo) -> phân loại WMO chính thức
+        # (classify_fog) là TÍN HIỆU CHÍNH. Hệ số heuristic chỉ được NÂNG TỐI
+        # ĐA 1 CẤP (cùng nguyên tắc với hệ số địa hình của lũ quét) — vì đêm
+        # mùa ẩm nhiệt đới gần như luôn bão hoà (ẩm ~98%, chênh nhiệt-điểm
+        # sương ~0), nếu cho heuristic quyền kéo thẳng lên đỏ sẽ báo động giả
+        # quanh năm dù model dự báo trời quang.
+        vis_level = classify_fog(forecast.visibility_min_m)
+        vis_score = _fog_visibility_score(forecast.visibility_min_m)
+        escalated = _ALERT_LEVEL_ORDER.index(factor_level) > _ALERT_LEVEL_ORDER.index(vis_level)
+        level = _escalate(vis_level) if escalated else vis_level
+        score = max(vis_score, factor_score if escalated else 0.0)
+        detail = (
+            f"Tầm nhìn dự báo thấp nhất {forecast.visibility_min_m:.0f}m (WMO: <1000m sương mù, "
+            f"<50m sương mù dày), hệ số nguy cơ bổ trợ {factor:.2f} "
+            f"(độ ẩm {humidity:.0f}%, chênh nhiệt-điểm sương {spread_c:.1f}°C, địa hình '{terrain}')"
+            + (" — hệ số cao, nâng 1 cấp so với phân loại tầm nhìn." if escalated else ".")
+        )
+        # Điểm phải nằm trong band của level cuối để alert_level/risk_score nhất quán.
+        score = _clamp_score_to_level(score, level)
+    else:
+        level = factor_level
+        score = factor_score
+        detail = (
+            f"Hệ số nguy cơ sương mù {factor:.2f} (độ ẩm {humidity:.0f}%, "
+            f"chênh nhiệt-điểm sương {spread_c:.1f}°C, địa hình '{terrain}') "
+            "— ước tính, KHÔNG có tầm nhìn dự báo (nguồn thiếu dữ liệu hourly)."
+        )
+
+    return HazardRisk(hazard="fog", alert_level=level, risk_score=round(_clamp(score), 1), detail=detail)
 
 
 def compute_risk(location: LocationInput, forecast: ForecastInput) -> RiskAssessment:
