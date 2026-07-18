@@ -7,6 +7,10 @@
 	// open at once — this never touches ForestGump's own data/build.
 	const LEGACY_URL = 'http://localhost:5174';
 
+	/** Which side the dropdown opens from — 'left' when the trigger sits near the left edge
+	 * (e.g. the sidebar footer), so the menu doesn't spill off-screen. */
+	let { align = 'right' }: { align?: 'left' | 'right' } = $props();
+
 	let open = $state(false);
 
 	const triggerClass = clsx(
@@ -14,9 +18,12 @@
 		'bg-white/70 px-3 py-1.5 text-xs font-medium text-gray-600 transition',
 		'hover:bg-cream/70 focus-visible:outline-2 focus-visible:outline-accent'
 	);
-	const menuClass = clsx(
-		'absolute right-0 z-50 mt-2 w-60 rounded-xl border border-black/[0.06] bg-white p-1.5',
-		'shadow-[0_1px_2px_rgba(31,25,16,0.04),0_18px_40px_-24px_rgba(31,25,16,0.22)]'
+	const menuClass = $derived(
+		clsx(
+			'absolute z-50 mt-2 w-60 rounded-xl border border-black/[0.06] bg-white p-1.5',
+			align === 'left' ? 'left-0' : 'right-0',
+			'shadow-[0_1px_2px_rgba(31,25,16,0.04),0_18px_40px_-24px_rgba(31,25,16,0.22)]'
+		)
 	);
 	const currentClass = clsx(
 		'flex items-center gap-2 rounded-lg bg-accent/10 px-3 py-2',

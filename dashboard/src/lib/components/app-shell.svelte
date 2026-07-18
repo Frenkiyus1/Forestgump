@@ -14,11 +14,15 @@
 	let {
 		children,
 		lang = 'vi',
-		onLangChange
+		onLangChange,
+		compact = false
 	}: {
 		children: Snippet;
 		lang?: Bulletin['lang'];
 		onLangChange?: (l: Bulletin['lang']) => void;
+		/** Fits main content to the viewport height on large screens (no page scroll) — used by
+		 * pages like /map that manage their own internal scroll regions. */
+		compact?: boolean;
 	} = $props();
 
 	const path = $derived(page.url.pathname);
@@ -202,6 +206,9 @@
 					</svg>
 				</button>
 			</div>
+			<div class="mt-3 border-t border-black/[0.04] pt-3">
+				<VersionSwitcher align="left" />
+			</div>
 		</div>
 	</aside>
 
@@ -230,7 +237,6 @@
 					</svg>
 				</button>
 				<div class="ml-auto flex items-center gap-2">
-					<VersionSwitcher />
 					{#if onLangChange}
 						<LanguageToggle {lang} onChange={onLangChange} />
 					{/if}
@@ -238,7 +244,14 @@
 			</div>
 		</header>
 
-		<main class="relative z-10 mx-auto max-w-6xl px-6 pt-10 pb-20">
+		<main
+			class={clsx(
+				'relative z-10 mx-auto max-w-6xl',
+				compact
+					? 'flex flex-col px-6 pt-4 pb-4 lg:h-[calc(100vh-64px)] lg:overflow-y-auto'
+					: 'px-6 pt-10 pb-20'
+			)}
+		>
 			{@render children()}
 		</main>
 	</div>
