@@ -5,15 +5,41 @@ Open-Meteo/OpenWeatherMap) qua HTTP POST, áp dụng rule engine (risk_engine.py
 thresholds.py — KHÔNG phải machine learning) để đánh giá rủi ro rét đậm/rét
 hại, mưa lớn/lũ quét, sương mù, rồi sinh bản tin cảnh báo bằng LLM
 (bulletin.py). Rule-based nên luôn hoạt động, không có mock mode.
+
+Ngoài ra có 1 endpoint [OPTIONAL/DEMO] /predict-flood-risk dùng XGBoost
+(train_flood.py) làm THAM KHẢO bổ sung cho xác suất lũ quét — KHÔNG thay thế
+compute_risk() (vẫn là nguồn đánh giá chính cho /assess-risk). Xem cảnh báo
+đầy đủ trong train_flood.py.
 """
 
+from pathlib import Path
+from typing import Literal, Optional
+
+import xgboost as xgb
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 from bulletin import generate_bulletin
 from risk_engine import ForecastInput, LocationInput, RiskAssessment, compute_risk
+from train_flood import FEATURE_NAMES as FLOOD_FEATURE_NAMES
+from train_flood import _true_flood_probability, build_flood_features
+from thresholds import TERRAIN_FLOOD_MULTIPLIER
 
 app = FastAPI(title="Forestgump AI Engine", version="1.0.0")
+
+# [OPTIONAL/DEMO] Model lũ quét XGBoost — nạp nếu đã chạy `python train_flood.py`
+# (sinh flood_model.json). Chưa train thì /predict-flood-risk tự fallback về
+# công thức mock (mode="mock", xem predict_flood_risk() bên dưới) — KHÔNG lỗi
+# 500, giữ đúng nguyên tắc AI Engine luôn trả lời được.
+_FLOOD_MODEL_PATH = Path(__file__).parent / "flood_model.json"
+_flood_booster: Optional[xgb.Booster] = None
+if _FLOOD_MODEL_PATH.exists():
+    try:
+        _flood_booster = xgb.Booster()
+        _flood_booster.load_model(str(_FLOOD_MODEL_PATH))
+    except Exception as exc:  # noqa: BLE001 - lỗi nạp model không được làm sập service
+        print(f"[APP] WARNING: lỗi nạp flood_model.json, dùng mock: {exc}")
+        _flood_booster = None
 
 
 @app.get("/health")
@@ -52,3 +78,44 @@ def assess_risk(data: AssessRiskRequest) -> AssessRiskResponse:
         bulletin = generate_bulletin(data.location, risk)
         days.append(DayAssessment(risk=risk, bulletin=bulletin))
     return AssessRiskResponse(location_code=data.location.code, days=days)
+
+
+class PredictFloodRiskRequest(BaseModel):
+    """Payload cho /predict-flood-risk — khớp build_flood_features (train_flood.py)."""
+
+    rain_24h_mm: float
+    rain_12h_mm: float
+    terrain: str
+    elevation_m: float
+    humidity_pct: float
+
+
+class PredictFloodRiskResponse(BaseModel):
+    flood_probability: float  # 0-1
+    mode: Literal["mock", "model"]
+
+
+@app.post("/predict-flood-risk", response_model=PredictFloodRiskResponse)
+def predict_flood_risk(data: PredictFloodRiskRequest) -> PredictFloodRiskResponse:
+    """[OPTIONAL/DEMO] Xác suất lũ quét bổ sung bằng XGBoost (train_flood.py) —
+    THAM KHẢO, KHÔNG thay thế compute_risk() (rule-based, vẫn là nguồn đánh
+    giá chính dùng cho /assess-risk và bản tin cảnh báo thật).
+
+    mode="model" nếu đã chạy `python train_flood.py` (có flood_model.json);
+    mode="mock" nếu chưa — dùng lại chính công thức sigmoid dùng để SINH NHÃN
+    huấn luyện (train_flood._true_flood_probability), tức là công thức "hợp
+    lý về hình dạng" chứ KHÔNG phải số liệu khí tượng đã thẩm định.
+    """
+    if _flood_booster is not None:
+        features = build_flood_features(
+            data.rain_24h_mm, data.rain_12h_mm, data.terrain, data.elevation_m, data.humidity_pct
+        )
+        dmatrix = xgb.DMatrix(features.reshape(1, -1), feature_names=FLOOD_FEATURE_NAMES)
+        probability = float(_flood_booster.predict(dmatrix)[0])
+        mode: Literal["mock", "model"] = "model"
+    else:
+        terrain_multiplier = TERRAIN_FLOOD_MULTIPLIER.get(data.terrain, 1.0)
+        probability = _true_flood_probability(data.rain_24h_mm, data.rain_12h_mm, terrain_multiplier)
+        mode = "mock"
+
+    return PredictFloodRiskResponse(flood_probability=probability, mode=mode)
