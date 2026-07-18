@@ -1,0 +1,4 @@
+name = "forestgump"
+compatibility_date = "2026-06-26"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "./dashboard/.svelte-kit/cloudflare"
