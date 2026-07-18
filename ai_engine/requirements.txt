@@ -1,2 +1,7 @@
 fastapi
 uvicorn[standard]
+
+# --- ML (song song rule engine, xem ml_engine.py) ---
+xgboost
+scikit-learn
+numpy
