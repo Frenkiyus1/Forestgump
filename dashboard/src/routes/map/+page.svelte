@@ -46,6 +46,12 @@
 <svelte:head><title>Map — Điện Biên — ForestGump</title></svelte:head>
 
 <AppShell compact={true} noHeader={true}>
+	<header class="mb-4">
+		<h1 class="text-2xl font-semibold tracking-tight text-gray-900">
+			Bản đồ Điện Biên
+		</h1>
+	</header>
+
 	{#if data.apiError}
 		<div
 			class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
@@ -95,12 +101,6 @@
 			{/if}
 		</div>
 	</div>
-
-	<header class="mb-4">
-		<h1 class="text-2xl font-semibold tracking-tight text-gray-900">
-			Bản đồ Điện Biên
-		</h1>
-	</header>
 
 	<DienBienMap
 		regions={HOTSPOT_REGIONS}
