@@ -1,4 +1,0 @@
-demo_x000768_y000000.png
-demo_x000768_y000256.png
-demo_x000768_y000512.png
-demo_x000768_y000768.png

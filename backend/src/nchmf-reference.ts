@@ -28,7 +28,7 @@ const NCHMF_FETCH_TIMEOUT_MS = Number(process.env.NCHMF_FETCH_TIMEOUT_MS ?? 8000
 
 // Là 1 dự án demo hackathon sinh viên — KHÔNG giả danh trình duyệt/bot lạ,
 // khai báo rõ danh tính để nchmf.gov.vn có thể chặn nếu không muốn bị gọi.
-const USER_AGENT = 'ForestGump-DienBien-Hackathon-Demo/1.0';
+const USER_AGENT = 'Forestgump-DienBien-Hackathon-Demo/1.0';
 
 /** Dự báo 1 ngày trong danh sách "Thời tiết 10 ngày tới" của NCHMF. */
 export interface NchmfDayForecast {
