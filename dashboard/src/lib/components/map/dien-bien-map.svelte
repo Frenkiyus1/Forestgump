@@ -145,7 +145,26 @@
 			: null
 	);
 
+	const ZOOM_DURATION_MS = 500;
+	const ZOOM_SCALE = 2.5;
+	let zoomingRegionId = $state<number | null>(null);
+	let zoomStyle = $state<string>('');
+
 	function select(id: number) {
+		const region = regions.find((r) => r.id === id);
+		if (region && HAZARD_HEATMAP_ANCHOR_NAMES.has(region.name)) {
+			const [cx, cy] = region.centroid;
+			const cxPct = (cx / 926) * 100;
+			const cyPct = (cy / 1178) * 100;
+			zoomingRegionId = id;
+			selectedId = id;
+			zoomStyle = `transform: translate(calc(50% - ${cxPct * ZOOM_SCALE}%), calc(50% - ${cyPct * ZOOM_SCALE}%)) scale(${ZOOM_SCALE}); transform-origin: 0 0; transition: transform ${ZOOM_DURATION_MS}ms ease-in-out;`;
+			setTimeout(() => {
+				onSelect(id);
+				zoomingRegionId = null;
+			}, ZOOM_DURATION_MS);
+			return;
+		}
 		selectedId = id;
 		onSelect(id);
 	}
@@ -216,7 +235,9 @@
 		>
 			<div
 				class="absolute top-0 left-0 h-full w-full"
-				style="transform: translate({panX}px, {panY}px) scale({scale}); transform-origin: 0 0;"
+				style={zoomingRegionId
+					? zoomStyle
+					: `transform: translate(${panX}px, ${panY}px) scale(${scale}); transform-origin: 0 0;`}
 			>
 				<img
 					src="/dienbien-map.png"
