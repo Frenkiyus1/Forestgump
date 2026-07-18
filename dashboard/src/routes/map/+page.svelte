@@ -73,44 +73,41 @@
 		</div>
 	{/if}
 
-	<div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-		<div class="flex flex-wrap gap-1.5" role="group" aria-label="Chọn loại hiểm hoạ">
-			{#each HAZARDS as hazard (hazard)}
-				<button
-					type="button"
-					onclick={backToOverview}
-					class={clsx(
-						'rounded-full px-3 py-1.5 text-sm font-medium transition',
-						selectedHazard === hazard
-							? 'bg-gray-900 text-white'
-							: 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-					)}
-				>
-					Điện Biên
-				</button>
-				{#if selectedRegion}
-					<span aria-hidden="true">›</span>
-					<span class="font-semibold text-gray-900">{selectedRegion.name}</span>
-				{/if}
-			</nav>
-
-			<h1
-				class="text-2xl leading-tight font-semibold tracking-tight"
-				style="font-family: 'Lora', serif;"
+	<div class="mb-3">
+		<nav class="mb-1 flex items-center gap-1.5 text-sm text-gray-400">
+			<button
+				type="button"
+				onclick={backToOverview}
+				class={clsx(
+					'transition hover:text-gray-600',
+					!selectedRegion && 'font-semibold text-gray-900'
+				)}
 			>
-				{selectedRegion ? selectedRegion.name : 'Điện Biên'}
-			</h1>
-			<p class="mt-1 text-sm text-gray-500">
-				{#if !selectedRegion}
-					Chọn một khu vực tại Điện Biên để xem chi tiết, hoặc đổi hiểm hoạ/ngày để xem heatmap
-					cảnh báo.
-				{:else}
-					Khu vực {selectedRegion.name} — mã vùng {selectedRegion.id}.
-				{/if}
-			</p>
-		</div>
+				Điện Biên
+			</button>
+			{#if selectedRegion}
+				<span aria-hidden="true">›</span>
+				<span class="font-semibold text-gray-900">{selectedRegion.name}</span>
+			{/if}
+		</nav>
 
-		<div class="mb-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
+		<h1
+			class="text-2xl leading-tight font-semibold tracking-tight"
+			style="font-family: 'Lora', serif;"
+		>
+			{selectedRegion ? selectedRegion.name : 'Điện Biên'}
+		</h1>
+		<p class="mt-1 text-sm text-gray-500">
+			{#if !selectedRegion}
+				Chọn một khu vực tại Điện Biên để xem chi tiết, hoặc đổi hiểm hoạ/ngày để xem heatmap
+				cảnh báo.
+			{:else}
+				Khu vực {selectedRegion.name} — mã vùng {selectedRegion.id}.
+			{/if}
+		</p>
+	</div>
+
+	<div class="mb-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
 			<div class="flex flex-wrap gap-1.5" role="group" aria-label="Chọn loại hiểm hoạ">
 				{#each HAZARDS as hazard (hazard)}
 					<button
