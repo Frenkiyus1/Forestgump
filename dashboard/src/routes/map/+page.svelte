@@ -53,6 +53,13 @@
 <svelte:head><title>Map — Điện Biên — ForestGump</title></svelte:head>
 
 <AppShell>
+	{#if data.apiError}
+		<div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+			<p class="font-medium">Chưa kết nối được backend — đang hiển thị bản đồ ở chế độ mặc định (xanh lá).</p>
+			<p class="mt-1 text-amber-700">{data.apiError}</p>
+		</div>
+	{/if}
+
 	<div class="mb-6">
 		<nav class="mb-3 flex items-center gap-1.5 text-sm text-gray-400">
 			<button
