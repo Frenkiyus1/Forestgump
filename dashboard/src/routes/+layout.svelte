@@ -15,7 +15,7 @@
 	// CLAUDE.md mục 5.5). invalidateAll() chỉ re-run load functions, không
 	// reload cả trang -> không chớp/không mất vị trí cuộn. Dừng polling khi
 	// tab ẩn để đỡ tốn request.
-	const POLL_INTERVAL_MS = 30_000;
+	const POLL_INTERVAL_MS = 10_000;
 	$effect(() => {
 		const timer = setInterval(() => {
 			if (!document.hidden) void invalidateAll();
