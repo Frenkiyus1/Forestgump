@@ -50,6 +50,7 @@
 		<h1 class="text-2xl font-semibold tracking-tight text-gray-900">
 			Bản đồ tỉnh Điện Biên (sau sát nhập)
 		</h1>
+		<div class="mx-auto mt-2 h-0.5 w-16 rounded-full bg-gradient-to-r from-transparent via-accent to-transparent"></div>
 	</header>
 
 	{#if data.apiError}
