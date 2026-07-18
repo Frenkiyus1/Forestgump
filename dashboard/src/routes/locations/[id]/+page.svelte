@@ -14,25 +14,28 @@
 
 	let { data }: { data: PageData } = $props();
 	const detail = $derived(data.detail);
+	// Poll 10s ở +layout.svelte tạo `detail` object mới mỗi lần dù nội dung
+	// không đổi -> tách locationId ra $derived riêng để effect bên dưới chỉ
+	// load lại bản tin khi chuỗi locationId thực sự khác, tránh banner giật
+	// về skeleton mỗi lần poll (xem cùng pattern ở routes/+page.svelte).
+	const detailLocationId = $derived(detail.locationId);
 
 	let lang = $state<Bulletin['lang']>('vi');
 	let bulletin = $state<Bulletin | null>(null);
 	let bulletinLoading = $state(true);
 
-	async function loadBulletin() {
+	async function loadBulletin(locationId: string, currentLang: Bulletin['lang']) {
 		bulletinLoading = true;
 		try {
-			const forecast = await getForecast(detail.locationId);
-			bulletin = await generateBulletin(forecast, lang);
+			const forecast = await getForecast(locationId);
+			bulletin = await generateBulletin(forecast, currentLang);
 		} finally {
 			bulletinLoading = false;
 		}
 	}
 
 	$effect(() => {
-		void detail.locationId;
-		void lang;
-		loadBulletin();
+		loadBulletin(detailLocationId, lang);
 	});
 
 	// Gauge hiển thị 3 chỉ số hôm nay, tô màu theo mức cảnh báo hiện tại của khu
