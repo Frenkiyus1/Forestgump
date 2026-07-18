@@ -1,7 +1,7 @@
 // Tất cả lệnh gọi REST API tới backend SaliGuard tập trung ở đây (xem CLAUDE.md
 // mục 5.1) — dashboard không kết nối thẳng DB, chỉ gọi HTTPS API của backend.
-import { env } from "$env/dynamic/public";
-const PUBLIC_API_URL = env.PUBLIC_API_URL ?? "";
+import { env } from '$env/dynamic/public';
+const PUBLIC_API_URL = env.PUBLIC_API_URL ?? '';
 import type { DienBienForecastEntry } from './types';
 
 /**
