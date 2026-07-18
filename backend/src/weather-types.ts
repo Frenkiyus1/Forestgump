@@ -1,6 +1,5 @@
 // Kiểu dữ liệu dùng chung giữa weather-ingest.ts, weather-openweathermap.ts và
-// db.ts — tách riêng để tránh import vòng (weather-ingest cần ghi vào DB,
-// db.ts không cần biết chi tiết cách gọi API).
+// api.ts — tách riêng để tránh import vòng.
 
 /** Một ngày dự báo đã chuẩn hoá (nguồn Open-Meteo hoặc OpenWeatherMap). */
 export interface DailyForecast {

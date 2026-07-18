@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# SaliGuard - khởi động Backend (Node/tsx) và AI Engine (FastAPI) cùng lúc.
+# Forestgump - khởi động Backend (Node/tsx) và AI Engine (FastAPI) cùng lúc.
 # Dùng được trên Linux / macOS / Git Bash / WSL.
 #
 #   ./start.sh

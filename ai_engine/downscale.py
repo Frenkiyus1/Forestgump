@@ -16,7 +16,7 @@ DEFAULT_LAPSE_RATE_C_PER_100M = 0.65
 
 # Ngưỡng heuristic NỘI BỘ cho fog_risk_factor — dự án tự định nghĩa để ước
 # tính xu hướng, CHƯA đối chiếu số liệu quan trắc thực tế (chưa có CSDL lịch
-# sử thiên tai Điện Biên, xem docs/dienbien-phase1.md). KHÔNG phải ngưỡng khí
+# sử thiên tai Điện Biên, xem docs/architecture.md mục 5). KHÔNG phải ngưỡng khí
 # tượng chính thức — cần hiệu chỉnh khi có dữ liệu quan trắc.
 FOG_FULL_RISK_SPREAD_C = 2.5  # chênh nhiệt-điểm sương <= mức này: rủi ro tối đa
 FOG_ZERO_RISK_SPREAD_C = 6.0  # chênh nhiệt-điểm sương >= mức này: gần như không sương mù

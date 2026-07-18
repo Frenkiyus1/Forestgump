@@ -1,0 +1,46 @@
+# Forestgump - Tự host tại nhà qua Cloudflare Tunnel (không cần IP public, không
+# cần mở port trên router — né được CGNAT của ISP dân dụng VN).
+#
+#   docker compose -f docker-compose.selfhost.yml up -d --build
+#   docker compose -f docker-compose.selfhost.yml ps
+#   docker compose -f docker-compose.selfhost.yml logs -f cloudflared
+#
+# Cần file .env (xem .env.prod.example) đặt cạnh file này, có thêm biến
+# CLOUDFLARE_TUNNEL_TOKEN (lấy từ Cloudflare Zero Trust > Networks > Tunnels,
+# xem hướng dẫn phần E trong DEPLOY.md).
+#
+# Kiến trúc:
+#   Internet --(Cloudflare edge, HTTPS tự động)--> cloudflared (kết nối OUTBOUND,
+#     không mở port nào trên máy nhà) --> backend:3000 --> ai_engine:8000 (nội bộ)
+# Không có DB/MQTT — pipeline tính on-the-fly mỗi request (xem docs/architecture.md).
+
+services:
+  ai_engine:
+    build: ./ai_engine
+    container_name: forestgump-ai
+    restart: unless-stopped
+    # Không publish cổng — chỉ backend gọi nội bộ.
+
+  backend:
+    build: ./backend
+    container_name: forestgump-backend
+    restart: unless-stopped
+    depends_on:
+      ai_engine:
+        condition: service_started
+    environment:
+      AI_ENGINE_BASE_URL: http://ai_engine:8000
+      API_PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      OPENWEATHERMAP_API_KEY: ${OPENWEATHERMAP_API_KEY}
+    # Không publish 3000 ra máy host — cloudflared gọi qua mạng nội bộ Docker.
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: forestgump-cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - backend
