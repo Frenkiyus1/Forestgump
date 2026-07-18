@@ -48,17 +48,15 @@
 <AppShell>
 	{#if data.apiError}
 		<div
-			class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+			class="mb-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
 		>
-			<p class="font-medium">
-				Chưa kết nối được backend — đang hiển thị bản đồ ở chế độ mặc định (xanh lá).
-			</p>
-			<p class="mt-1 text-amber-700">{data.apiError}</p>
+			<p class="font-medium">Chưa kết nối được backend — đang hiển thị bản đồ ở chế độ mặc định (xanh lá).</p>
+			<p class="mt-0.5 text-amber-700">{data.apiError}</p>
 		</div>
 	{/if}
 
-	<div class="mb-2 flex flex-col gap-3">
-		<div class="flex flex-wrap items-center gap-2">
+	<div class="mb-1 flex flex-col gap-1">
+		<div class="flex flex-wrap items-center gap-1">
 			{#each HAZARDS as hazard (hazard)}
 				<button
 					type="button"

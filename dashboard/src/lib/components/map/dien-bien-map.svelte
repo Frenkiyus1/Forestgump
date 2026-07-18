@@ -117,8 +117,8 @@
 	}
 </script>
 
-<div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_minmax(0,26rem)]">
-	<div class={clsx(CARD, 'relative w-full overflow-hidden rounded-2xl p-0')} style="min-height: 60vh;">
+<div class="grid grid-cols-1 items-start gap-2 lg:grid-cols-[1fr_minmax(0,26rem)]">
+	<div class={clsx(CARD, 'relative w-full overflow-hidden rounded-2xl p-0')} style="min-height: 55vh;">
 		<div class="relative h-full w-full touch-none select-none">
 			<div
 				class="h-full w-full"
@@ -185,9 +185,9 @@
 						class="pointer-events-none absolute z-10"
 						style="left: {(pinPos.x / 926) * 100}%; top: {(pinPos.y / 1178) * 100}%;"
 					>
-						<div
-							class="min-w-[160px] max-w-[260px] rounded-xl bg-[rgba(17,24,39,0.92)] px-3 py-2 text-sm text-white shadow-xl"
-						>
+					<div
+						class="min-w-[140px] max-w-[220px] rounded-xl bg-[rgba(17,24,39,0.92)] px-2 py-1.5 text-xs text-white shadow-xl"
+					>
 							<small class="block text-amber-200">Đơn vị số {pinRegion.id}</small>
 							<strong class="block text-white">{pinRegion.name}</strong>
 							{#if pinHeat}
@@ -210,7 +210,7 @@
 								{/if}
 								{#if pinHeat.weather}
 									<dl
-										class="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-white/15 pt-1.5 text-[11px] text-white/85"
+										class="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-white/15 pt-1 text-[10px] text-white/85"
 									>
 										<dt class="text-white/50">Nhiệt độ</dt>
 										<dd>{pinHeat.weather.tempMinC}–{pinHeat.weather.tempMaxC}°C</dd>
@@ -231,14 +231,14 @@
 
 		{#if heat}
 			<div
-				class="pointer-events-none absolute right-3 bottom-3 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[11px] shadow-lg"
+				class="pointer-events-none absolute right-2 bottom-2 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-2 py-1.5 text-[10px] shadow-lg"
 			>
-				<p class="mb-1.5 font-semibold text-gray-700">Chú giải</p>
-				<div class="flex flex-col gap-1">
+				<p class="mb-1 font-semibold text-gray-700">Chú giải</p>
+				<div class="flex flex-col gap-0.5">
 					{#each ['green', 'yellow', 'orange', 'red'] as const as level (level)}
-						<div class="flex items-center gap-1.5">
+						<div class="flex items-center gap-1">
 							<span
-								class="h-2.5 w-2.5 rounded-full"
+								class="h-2 w-2 rounded-full"
 								style="background-color: {ALERT_HEX[level]}"
 								aria-hidden="true"
 							></span>
@@ -246,7 +246,7 @@
 						</div>
 					{/each}
 				</div>
-				<div class="mt-2 border-t border-gray-200 pt-1.5 text-gray-500">
+				<div class="mt-1 border-t border-gray-200 pt-1 text-gray-500">
 					<p>━ Viền đậm = đo thật</p>
 					<p>┄ Viền đứt = ước tính, tin cậy thấp</p>
 				</div>
@@ -254,16 +254,16 @@
 		{/if}
 	</div>
 
-	<aside class="flex min-h-0 flex-col gap-3">
+	<aside class="flex min-h-0 flex-col gap-1">
 		<input
 			type="text"
 			placeholder="Tìm theo tên xã/phường…"
 			autocomplete="off"
 			bind:value={searchQuery}
-			class="w-full shrink-0 rounded-xl border border-[#d0d7e2] px-3 py-2.5 text-sm"
+			class="w-full shrink-0 rounded-xl border border-[#d0d7e2] px-2 py-1.5 text-sm"
 		/>
 
-		<div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-auto">
+		<div class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto">
 			{#each filteredRegions as region (region.id)}
 				{@const regionHeat = heat?.get(region.id) ?? null}
 				<button
@@ -286,7 +286,7 @@
 						hidePin();
 					}}
 					class={clsx(
-						'flex items-center gap-2 rounded-xl border-0 px-3 py-2.5 text-left text-sm transition',
+						'flex items-center gap-1 rounded-xl border-0 px-2 py-1.5 text-left text-xs transition',
 						selectedId === region.id
 							? 'bg-[#fef3c7] text-[#92400e]'
 							: 'bg-[#f7f9fc] hover:bg-[#fef3c7] hover:text-[#92400e]'
@@ -304,14 +304,14 @@
 			{/each}
 		</div>
 
-		<p class="shrink-0 text-xs text-[#667085]">
+		<p class="shrink-0 text-[10px] text-[#667085]">
 			Các vùng bấm được bo theo biên hiển thị trên ảnh. Bấm vào từng vùng để chọn.
 		</p>
 	</aside>
 </div>
 
 {#if selectedAnchorEntry}
-	<div class={clsx(CARD, 'mt-6 p-6')}>
+	<div class={clsx(CARD, 'mt-2 p-4')}>
 		<RegionHazardHeatmap entry={selectedAnchorEntry} />
 	</div>
 {/if}
