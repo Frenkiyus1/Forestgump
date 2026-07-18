@@ -1,10 +1,10 @@
 import type { PageServerLoad } from './$types';
-import { fetchDienBienForecast } from '$lib/api';
+import { loadDienBienForecast } from '$lib/api';
 
 export const prerender = false;
 
 export const load: PageServerLoad = async ({ fetch, setHeaders }) => {
 	setHeaders({ 'cache-control': 'max-age=60' });
-	const forecastEntries = await fetchDienBienForecast(fetch);
-	return { forecastEntries };
+	const { forecastEntries, apiError } = await loadDienBienForecast(fetch);
+	return { forecastEntries, apiError };
 };

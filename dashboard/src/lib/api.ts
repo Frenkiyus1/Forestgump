@@ -39,3 +39,16 @@ export async function fetchChatAnswer(
 	const data = (await res.json()) as { answer: string };
 	return data.answer;
 }
+
+export async function loadDienBienForecast(
+	fetchFn: typeof fetch = fetch
+): Promise<{ forecastEntries: DienBienForecastEntry[]; apiError: string | null }> {
+	try {
+		return { forecastEntries: await fetchDienBienForecast(fetchFn), apiError: null };
+	} catch (err) {
+		return {
+			forecastEntries: [],
+			apiError: err instanceof Error ? err.message : 'Không kết nối được backend.'
+		};
+	}
+}
