@@ -4,7 +4,8 @@
 import type { Alert, AlertLevel, DayForecast, Forecast } from './types';
 import type { Location } from './locations';
 import { LOCATIONS } from './locations';
-import { getForecast } from './weather';
+import { fetchDienBienForecast } from './api';
+import { EMPTY_DAY, entryForLocation, toForecast } from './dienbien-adapter';
 
 export type TrendDirection = 'up' | 'down' | 'flat';
 
@@ -23,7 +24,7 @@ export interface LocationDetail {
 }
 
 export function toLocationDetail(location: Location, forecast: Forecast): LocationDetail {
-	const today = forecast.daily[0];
+	const today = forecast.daily[0] ?? EMPTY_DAY;
 	const tomorrow = forecast.daily[1];
 	const trend: TrendDirection = !tomorrow
 		? 'flat'
@@ -48,16 +49,27 @@ export function toLocationDetail(location: Location, forecast: Forecast): Locati
 	};
 }
 
-export async function fetchLocationDetails(): Promise<LocationDetail[]> {
-	const forecasts = await Promise.all(LOCATIONS.map((l) => getForecast(l.id)));
-	return LOCATIONS.map((l, i) => toLocationDetail(l, forecasts[i]));
+/** 1 lệnh gọi GET /api/dienbien-forecast lấy cả 3 địa điểm — không gọi lặp lại theo từng địa điểm. Throw nếu backend không kết nối được; caller (routes/*.server.ts) bắt lỗi này để render fallback + banner. */
+export async function fetchLocationDetails(
+	fetchFn: typeof fetch = fetch
+): Promise<LocationDetail[]> {
+	const entries = await fetchDienBienForecast(fetchFn);
+	return LOCATIONS.map((l) => toLocationDetail(l, toForecast(l, entryForLocation(entries, l))));
 }
 
-export async function fetchLocationDetail(locationId: string): Promise<LocationDetail | null> {
+/** Dùng khi backend không kết nối được — forecast rỗng (green, không cảnh báo) cho cả 3 địa điểm thay vì để trang crash. */
+export function fallbackLocationDetails(): LocationDetail[] {
+	return LOCATIONS.map((l) => toLocationDetail(l, toForecast(l, undefined)));
+}
+
+export async function fetchLocationDetail(
+	locationId: string,
+	fetchFn: typeof fetch = fetch
+): Promise<LocationDetail | null> {
 	const location = LOCATIONS.find((l) => l.id === locationId);
 	if (!location) return null;
-	const forecast = await getForecast(locationId);
-	return toLocationDetail(location, forecast);
+	const details = await fetchLocationDetails(fetchFn);
+	return details.find((d) => d.locationId === locationId) ?? null;
 }
 
 export interface DashboardSummary {
@@ -112,8 +124,10 @@ export function toAlertEvents(details: LocationDetail[]): WeatherAlertEvent[] {
 		.sort((a, b) => a.hoursAhead - b.hoursAhead);
 }
 
-export async function fetchAlertEvents(): Promise<WeatherAlertEvent[]> {
-	return toAlertEvents(await fetchLocationDetails());
+export async function fetchAlertEvents(
+	fetchFn: typeof fetch = fetch
+): Promise<WeatherAlertEvent[]> {
+	return toAlertEvents(await fetchLocationDetails(fetchFn));
 }
 
 /** Location with the most urgent active alert (soonest hoursAhead); null if all green. */

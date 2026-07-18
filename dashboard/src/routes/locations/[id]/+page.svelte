@@ -66,6 +66,17 @@
 <svelte:head><title>{detail.name} — ForestGump</title></svelte:head>
 
 <AppShell {lang} onLangChange={(l) => (lang = l)}>
+	{#if data.apiError}
+		<div
+			class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+		>
+			<p class="font-medium">
+				Chưa kết nối được backend — đang hiển thị dữ liệu mặc định (xanh lá).
+			</p>
+			<p class="mt-1 text-amber-700">{data.apiError}</p>
+		</div>
+	{/if}
+
 	<a
 		href={resolve('/locations')}
 		class="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 transition hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"

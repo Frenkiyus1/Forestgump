@@ -55,6 +55,11 @@ export const mockNotifyQuerySchema = z.strictObject({
   channel: z.enum(['zalo', 'sms', 'loa']).optional(),
 });
 
+/** Body của POST /api/chat — câu hỏi tự do người dùng gõ trong chat widget. */
+export const chatRequestSchema = z.strictObject({
+  question: z.string().min(1).max(500),
+});
+
 /**
  * Phản hồi dự báo 7 ngày từ Open-Meteo (endpoint /v1/forecast).
  * Dùng z.object (KHÔNG strict) vì đây là API bên thứ 3 ta không kiểm soát —

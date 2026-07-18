@@ -1,10 +1,18 @@
 import type { PageServerLoad } from './$types';
-import { fetchLocationDetails } from '$lib/derive';
+import { fallbackLocationDetails, fetchLocationDetails } from '$lib/derive';
 
 export const prerender = false;
 
-export const load: PageServerLoad = async ({ setHeaders }) => {
+export const load: PageServerLoad = async ({ fetch, setHeaders }) => {
 	setHeaders({ 'cache-control': 'max-age=3' }); // TẠM: demo, tăng lại 60 khi xong
-	const details = await fetchLocationDetails();
-	return { details };
+
+	try {
+		const details = await fetchLocationDetails(fetch);
+		return { details, apiError: null };
+	} catch (err) {
+		return {
+			details: fallbackLocationDetails(),
+			apiError: err instanceof Error ? err.message : 'Không kết nối được backend.'
+		};
+	}
 };

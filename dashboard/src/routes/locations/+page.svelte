@@ -9,6 +9,17 @@
 <svelte:head><title>Khu vực — ForestGump</title></svelte:head>
 
 <AppShell>
+	{#if data.apiError}
+		<div
+			class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+		>
+			<p class="font-medium">
+				Chưa kết nối được backend — đang hiển thị dữ liệu mặc định (xanh lá).
+			</p>
+			<p class="mt-1 text-amber-700">{data.apiError}</p>
+		</div>
+	{/if}
+
 	<div class="mb-8">
 		<h1
 			class="text-4xl leading-tight font-semibold tracking-tight"
