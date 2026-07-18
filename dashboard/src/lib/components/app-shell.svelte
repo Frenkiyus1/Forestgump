@@ -244,7 +244,7 @@
 			class={clsx(
 				'relative z-10 mx-auto max-w-6xl',
 				compact
-					? 'flex flex-col px-6 pt-4 pb-4 lg:h-[calc(100vh-64px)] lg:overflow-y-auto'
+					? 'flex flex-col px-6 pt-1 pb-4 lg:h-[calc(100vh-64px)] lg:overflow-y-auto'
 					: 'px-6 pt-10 pb-20'
 			)}
 		>
