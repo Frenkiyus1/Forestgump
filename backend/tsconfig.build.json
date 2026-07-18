@@ -7,17 +7,16 @@
     "outDir": "./dist"
   },
   "include": ["src/**/*.ts"],
-  // chat.ts/db.ts/mailer.ts/stringee.ts/satellite-client.ts/alert-test.ts: code
-  // mồ côi, không có file nào khác import — route /api/chat thật dùng
-  // gemini-client.ts. Loại khỏi build vì import package chưa cài
-  // (@google/genai, pg, nodemailer, jsonwebtoken, axios) làm hỏng `npm run build`.
+  // chat.ts/db.ts/mailer.ts/stringee.ts/alert-test.ts: code mồ côi, không có
+  // file nào khác import — route /api/chat thật dùng gemini-client.ts. Loại
+  // khỏi build vì import package chưa cài (@google/genai, pg, nodemailer,
+  // jsonwebtoken, axios) làm hỏng `npm run build`.
   "exclude": [
     "src/**/*.test.ts",
     "src/chat.ts",
     "src/db.ts",
     "src/mailer.ts",
     "src/stringee.ts",
-    "src/satellite-client.ts",
     "src/alert-test.ts"
   ]
 }

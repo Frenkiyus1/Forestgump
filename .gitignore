@@ -29,8 +29,3 @@ ai_engine/flood_model.json
 # Log chạy local (uvicorn redirect)
 ai_engine/*.out
 ai_engine/*.err
-
-# Satellite Engine: model checkpoint + dữ liệu upload/output chạy local
-satellite_engine/models/
-satellite_engine/uploads/
-satellite_engine/outputs/
