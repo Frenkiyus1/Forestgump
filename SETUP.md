@@ -1,7 +1,8 @@
-# ForestGump — Chạy local (Development)
+# Forestgump — Chạy local (Development)
 
 Hướng dẫn này giúp bất kỳ ai `git clone`/`git pull` repo này cũng chạy ra **kết quả giống hệt nhau**,
-bất kể hệ điều hành. Với việc deploy production lên VPS, xem [DEPLOY.md](DEPLOY.md).
+bất kể hệ điều hành. Với việc deploy production lên VPS, xem [DEPLOY.md](DEPLOY.md). Kiến trúc/luồng
+dữ liệu đầy đủ: xem [docs/architecture.md](docs/architecture.md).
 
 ## 0. Cách nhanh nhất — nhờ AI coding agent làm hộ
 
@@ -10,24 +11,20 @@ dưới** — copy nguyên khối prompt này, dán vào agent ngay sau khi `git
 hết (cài phần mềm còn thiếu, tạo `.env`, cài dependencies, khởi động và mở trình duyệt kiểm tra):
 
 ```text
-Đọc file SETUP.md ở gốc repo này và tự động thực hiện toàn bộ các bước để chạy dự án ForestGump ở
+Đọc file SETUP.md ở gốc repo này và tự động thực hiện toàn bộ các bước để chạy dự án Forestgump ở
 chế độ local development. Cụ thể:
 
-1. Kiểm tra máy đã có Node.js 22+, Python 3.12, Docker Desktop, pnpm chưa — cái nào thiếu thì cài
-   (Windows dùng winget, macOS dùng brew, Linux dùng apt/dnf tùy distro). Nếu không cài được Docker
-   (ví dụ máy ảo không hỗ trợ ảo hoá lồng nhau), làm theo mục 6 trong SETUP.md (cài PostgreSQL
-   native) thay thế.
-2. Chạy `docker compose up -d` ở gốc repo để dựng PostgreSQL + TimescaleDB và MQTT broker. Đợi
-   container "healthy" rồi mới sang bước sau.
-3. Copy backend/.env.example -> backend/.env và dashboard/.env.example -> dashboard/.env (giữ
-   nguyên giá trị mặc định, chúng đã khớp sẵn với docker-compose.yml).
-4. Cài dependencies: npm install ở gốc, npm install trong backend/, pip install -r
+1. Kiểm tra máy đã có Node.js 22+, Python 3.12, pnpm chưa — cái nào thiếu thì cài (Windows dùng
+   winget, macOS dùng brew, Linux dùng apt/dnf tùy distro).
+2. Copy backend/.env.example -> backend/.env và dashboard/.env.example -> dashboard/.env (giữ
+   nguyên giá trị mặc định, không cần key nào để chạy local — Open-Meteo/NCHMF không cần key).
+3. Cài dependencies: npm install ở gốc, npm install trong backend/, pip install -r
    ai_engine/requirements.txt, pnpm install trong dashboard/.
-5. Khởi động backend+ai_engine bằng `npm run dev` ở gốc, và dashboard bằng `pnpm dev` trong
+4. Khởi động backend+ai_engine bằng `npm run dev` ở gốc, và dashboard bằng `pnpm dev` trong
    dashboard/ (chạy nền/song song, không chặn nhau).
-6. Kiểm tra http://localhost:3000/health, http://127.0.0.1:8000/health và http://localhost:5173 đều
+5. Kiểm tra http://localhost:3000/health, http://127.0.0.1:8000/health và http://localhost:5173 đều
    trả về OK/200, rồi mở http://localhost:5173 trong trình duyệt.
-7. Nếu gặp lỗi (thiếu quyền, cổng bận, dependency cài không được...), tự chẩn đoán và sửa trước khi
+6. Nếu gặp lỗi (thiếu quyền, cổng bận, dependency cài không được...), tự chẩn đoán và sửa trước khi
    báo tôi — chỉ dừng lại hỏi nếu cần quyết định (vd. ghi đè service đang chạy trên cổng đó).
 
 Báo lại cho tôi khi cả 3 dịch vụ đã chạy và dashboard mở được, kèm theo bất kỳ bước nào bạn phải làm
@@ -40,35 +37,24 @@ khác với SETUP.md (do khác biệt môi trường/OS).
 |---|---|---|
 | [Node.js](https://nodejs.org/) | 22 LTS trở lên | backend, dashboard |
 | [Python](https://www.python.org/) | 3.12 | ai_engine |
-| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | mới nhất | PostgreSQL + TimescaleDB, MQTT broker |
 | [pnpm](https://pnpm.io/installation) | mới nhất | dashboard (`npm install -g pnpm`) |
 
-> Không có Docker? Có thể cài PostgreSQL 17 native, nhưng TimescaleDB sẽ không có sẵn trên
-> Windows/macOS (chỉ ảnh hưởng hiệu năng time-series, không ảnh hưởng chức năng) — xem mục 6.
+Không cần Docker/database/message broker — pipeline gọi thẳng Open-Meteo/AI
+Engine mỗi request, không lưu trạng thái (xem `docs/architecture.md` mục 6).
 
-## 2. Hạ tầng nền (DB + MQTT)
-
-```bash
-docker compose up -d
-docker compose ps          # đợi cả 2 container "healthy"/"running"
-```
-
-Lệnh này tự tạo database `forestgump`, nạp sẵn `backend/schema.sql` (bảng `stations` + 15 trạm mẫu,
-bảng `telemetry`) và khởi động Mosquitto MQTT broker ở `localhost:1883`. Không cần chạy `schema.sql`
-thủ công.
-
-## 3. Biến môi trường
+## 2. Biến môi trường
 
 ```bash
 cp backend/.env.example backend/.env
 cp dashboard/.env.example dashboard/.env
 ```
 
-Giá trị mặc định trong `backend/.env.example` đã khớp sẵn với `docker-compose.yml`
-(user/pass `postgres`, DB `forestgump`, MQTT `mqtt://localhost:1883`) — không cần sửa gì để chạy local.
-`dashboard/.env` mặc định trỏ `PUBLIC_API_URL=http://localhost:3000`.
+Giá trị mặc định chạy được ngay ở local — Open-Meteo và NCHMF không cần API
+key. `OPENWEATHERMAP_API_KEY` (backend/.env) chỉ cần nếu muốn test đường
+fallback (Open-Meteo lỗi/timeout); để trống vẫn chạy được, chỉ là fallback sẽ
+không hoạt động. `dashboard/.env` mặc định trỏ `PUBLIC_API_URL=http://localhost:3000`.
 
-## 4. Cài dependencies
+## 3. Cài dependencies
 
 ```bash
 # Root (concurrently, để chạy chung backend + ai_engine)
@@ -88,7 +74,7 @@ Nếu `pnpm install` báo `ERR_PNPM_IGNORED_BUILDS`, đó là vì `dashboard/pnp
 build script của `esbuild`/`sharp`/`workerd` theo mặc định bảo mật của pnpm — file này đã được cấu
 hình sẵn `allowBuilds: true` cho cả 3 package trong repo, chỉ cần `pnpm install` lại là xong.
 
-## 5. Chạy
+## 4. Chạy
 
 Mở 2 terminal:
 
@@ -104,17 +90,7 @@ Mở **http://localhost:5173** — đây là URL duy nhất cần truy cập, da
 engine phía sau. Đăng nhập bằng tài khoản demo trong `dashboard/src/lib/auth.ts`
 (`admin@forestgump.vn` / `forestgump123`) hoặc bấm "Tiếp tục với tư cách khách".
 
-## 6. Không có Docker (fallback PostgreSQL native)
-
-1. Cài PostgreSQL 17, tạo database `forestgump`.
-2. Nạp schema: `psql -U postgres -d forestgump -f backend/schema.sql`
-   (dòng `CREATE EXTENSION timescaledb` và `create_hypertable(...)` sẽ báo lỗi nếu không có
-   TimescaleDB — bỏ qua, các bảng vẫn được tạo bình thường dưới dạng bảng thường).
-3. Sửa `backend/.env` cho khớp user/password/port Postgres bạn vừa tạo.
-4. MQTT broker là tùy chọn — không có broker, backend chỉ log `[MQTT] Connection error` liên tục,
-   không ảnh hưởng dashboard.
-
-## 7. Chạy song song bản ForestGump cũ để đối chiếu (dành cho demo/giám khảo)
+## 5. Chạy song song bản ForestGump cũ để đối chiếu (dành cho demo/giám khảo)
 
 Nút **"Phiên bản"** trên thanh trên cùng của ForestGump mở ra link sang bản ForestGump gốc (giao
 diện mặn hoá cũ, tag git `forestgump-legacy`), chạy độc lập ở cổng **5174** qua `git worktree` —
