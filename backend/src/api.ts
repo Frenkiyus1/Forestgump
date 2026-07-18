@@ -82,7 +82,7 @@ function resolveDienBienLocations(code?: string): DienBienLocation[] | null {
 }
 
 /**
- * Lấy dự báo thời tiết + đánh giá rủi ro (rét đậm/rét hại, mưa lớn/lũ quét,
+ * Lấy dự báo thời tiết + đánh giá rủi ro (mưa đá, sạt lở đất, mưa lớn/lũ quét,
  * sương mù) + bản tin cảnh báo cho các địa điểm được chỉ định — gộp thành
  * MỘT payload duy nhất cho dashboard (tránh phải gọi 2 API rồi tự join).
  * Dùng chung cho GET /api/dienbien-forecast, GET /api/bulletins và
@@ -149,8 +149,8 @@ async function buildDienBienForecast(locations: DienBienLocation[]): Promise<Die
   );
 }
 
-// GET /api/dienbien-forecast?location=<code> - dự báo + đánh giá rủi ro (rét
-// đậm/rét hại, mưa lớn/lũ quét, sương mù) + bản tin cảnh báo cho 3 địa điểm
+// GET /api/dienbien-forecast?location=<code> - dự báo + đánh giá rủi ro (mưa
+// đá, sạt lở đất, mưa lớn/lũ quét, sương mù) + bản tin cảnh báo cho 3 địa điểm
 // demo Điện Biên, gộp thời tiết thô + risk + bulletin làm MỘT payload duy
 // nhất (tránh dashboard phải gọi 2 API rồi tự join). Không có `location` ->
 // trả cả 3 địa điểm; có -> lọc theo mã, 404 nếu không khớp.

@@ -20,27 +20,56 @@ SUPPORTED_LANGS = {"vi"}
 # Khoá: (hazard, alert_level). "audience" = đối tượng nhận bản tin.
 # "headline"/"action" dùng .format(location_name=..., date=...).
 TEMPLATES: dict[tuple[str, AlertLevel], dict[str, str]] = {
-    ("cold_damage", "green"): {
+    ("hail", "green"): {
         "audience": "Dân/cán bộ xã",
-        "headline": "{location_name} ngày {date}: thời tiết bình thường, chưa có rét đậm/rét hại.",
+        "headline": "{location_name} ngày {date}: chưa có nguy cơ mưa đá.",
         "action": "Theo dõi bản tin thời tiết định kỳ.",
     },
-    ("cold_damage", "yellow"): {
+    ("hail", "yellow"): {
         "audience": "Dân/cán bộ xã",
-        "headline": "Cảnh báo RÉT ĐẬM tại {location_name} ngày {date}.",
-        "action": "Giữ ấm cho người già, trẻ nhỏ và gia súc. Hạn chế ra ngoài sáng sớm/đêm khuya.",
+        "headline": "Cảnh báo NGUY CƠ MƯA ĐÁ tại {location_name} ngày {date}.",
+        "action": "Che chắn mái nhà kính/mái tôn, đưa vật nuôi vào chuồng khi trời chuyển giông.",
     },
-    ("cold_damage", "orange"): {
+    ("hail", "orange"): {
         "audience": "Dân/cán bộ xã",
-        "headline": "Cảnh báo RÉT ĐẬM diện rộng tại {location_name} ngày {date}.",
-        "action": "Giữ ấm người và gia súc, che chắn chuồng trại, hạn chế di chuyển đường xa sáng sớm.",
-    },
-    ("cold_damage", "red"): {
-        "audience": "Dân/cán bộ xã",
-        "headline": "CẢNH BÁO RÉT HẠI tại {location_name} ngày {date} — nguy hiểm sức khoẻ.",
+        "headline": "Cảnh báo MƯA ĐÁ tại {location_name} ngày {date}, nguy cơ hại cây trồng/mái nhà.",
         "action": (
-            "Che chắn chuồng trại, không thả rông gia súc lên núi. Không đốt than sưởi trong phòng "
-            "kín (nguy cơ ngộ độc khí CO). Ưu tiên giữ ấm người già, trẻ nhỏ."
+            "Che chắn cây trồng, nông sản, phương tiện. Trú ẩn nơi kiên cố khi có giông, "
+            "tránh xa cửa kính."
+        ),
+    },
+    ("hail", "red"): {
+        "audience": "Dân/cán bộ xã",
+        "headline": "NGUY HIỂM: NGUY CƠ MƯA ĐÁ DIỆN RỘNG tại {location_name} ngày {date}.",
+        "action": (
+            "Trú ẩn ngay nơi kiên cố khi có giông sét/mưa đá. Không trú dưới cây to hoặc mái tôn "
+            "mỏng. Sơ tán vật nuôi, che chắn tài sản trước khi giông đến."
+        ),
+    },
+    ("landslide", "green"): {
+        "audience": "Dân/cán bộ xã",
+        "headline": "{location_name} ngày {date}: chưa có nguy cơ sạt lở đất.",
+        "action": "Theo dõi bản tin thời tiết định kỳ.",
+    },
+    ("landslide", "yellow"): {
+        "audience": "Dân/cán bộ xã",
+        "headline": "Cảnh báo NGUY CƠ SẠT LỞ ĐẤT tại {location_name} ngày {date} do mưa tích luỹ.",
+        "action": "Theo dõi vết nứt, sụt đất quanh nhà và taluy. Hạn chế đi lại gần sườn dốc sau mưa lớn.",
+    },
+    ("landslide", "orange"): {
+        "audience": "Dân/cán bộ xã",
+        "headline": "Cảnh báo SẠT LỞ ĐẤT tại {location_name} ngày {date}, đất đã bão hoà nước.",
+        "action": (
+            "Di dời khỏi khu vực gần taluy dương/sườn dốc có dấu hiệu nứt, sụt. "
+            "Chuẩn bị sơ tán khi cần."
+        ),
+    },
+    ("landslide", "red"): {
+        "audience": "Dân/cán bộ xã",
+        "headline": "NGUY HIỂM: SẠT LỞ ĐẤT tại {location_name} ngày {date}.",
+        "action": (
+            "Sơ tán ngay khỏi khu vực chân/sườn núi dốc, taluy có dấu hiệu nứt. Không quay lại "
+            "cho đến khi chính quyền xác nhận an toàn."
         ),
     },
     ("heavy_rain_flood", "green"): {

@@ -7,6 +7,7 @@
 	import { ALERT_BADGE, ALERT_LABEL } from '$lib/alert-ui';
 	import {
 		DIENBIEN_HAZARD_LABEL,
+		DIENBIEN_HAZARDS,
 		buildRegionHeat,
 		pickDefaultHazard,
 		availableDays
@@ -27,7 +28,6 @@
 	};
 	const mapImg = $derived(ANCHOR_MAP_IMG[data.regionId] ?? null);
 
-	const HAZARDS: DienBienHazard[] = ['cold_damage', 'heavy_rain_flood', 'fog'];
 	let selectedHazard = $state<DienBienHazard>(
 		untrack(() => pickDefaultHazard(data.forecastEntries))
 	);
@@ -121,7 +121,7 @@
 		{/if}
 
 		<div class="mt-6 flex flex-wrap items-center gap-2">
-			{#each HAZARDS as hazard (hazard)}
+			{#each DIENBIEN_HAZARDS as hazard (hazard)}
 				<button
 					type="button"
 					onclick={() => (selectedHazard = hazard)}

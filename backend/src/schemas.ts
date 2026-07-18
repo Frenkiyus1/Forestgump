@@ -8,7 +8,7 @@ import { z } from 'zod';
 
 /** 1 hiểm hoạ trong đánh giá rủi ro Điện Biên — khớp risk_engine.HazardRisk. */
 export const hazardRiskSchema = z.strictObject({
-  hazard: z.enum(['cold_damage', 'heavy_rain_flood', 'fog']),
+  hazard: z.enum(['hail', 'landslide', 'heavy_rain_flood', 'fog']),
   alert_level: z.enum(['green', 'yellow', 'orange', 'red']),
   risk_score: z.number().finite(),
   detail: z.string(),
@@ -79,6 +79,8 @@ export const openMeteoForecastSchema = z.object({
     relative_humidity_2m_mean: z.array(z.number()),
     dew_point_2m_mean: z.array(z.number()),
     wind_speed_10m_mean: z.array(z.number()),
+    rain_sum: z.array(z.number()),
+    showers_sum: z.array(z.number()),
   }),
   // Chuỗi hourly có thể chứa null (giờ ngoài phạm vi model) — nullable từng phần tử.
   hourly: z.object({
@@ -90,6 +92,10 @@ export const openMeteoForecastSchema = z.object({
     relative_humidity_2m: z.array(z.number().nullable()),
     wind_gusts_10m: z.array(z.number().nullable()),
     soil_moisture_0_to_1cm: z.array(z.number().nullable()),
+    // Dùng cho mưa đá/sạt lở đất — cape/freezing_level_height/soil_moisture_9_to_27cm.
+    cape: z.array(z.number()),
+    freezing_level_height: z.array(z.number()),
+    soil_moisture_9_to_27cm: z.array(z.number()),
   }),
 });
 

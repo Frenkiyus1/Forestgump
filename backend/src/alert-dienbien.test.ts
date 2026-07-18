@@ -1,20 +1,59 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyColdDamage, classifyHeavyRainFloodRisk, classifyFog } from './alert-dienbien.js';
+import {
+  classifyHail,
+  classifyLandslide,
+  classifyHeavyRainFloodRisk,
+  classifyFog,
+} from './alert-dienbien.js';
 
-test('classifyColdDamage: rét hại (<= 13°C)', () => {
-  assert.equal(classifyColdDamage(13), 'red');
-  assert.equal(classifyColdDamage(-2), 'red');
+test('classifyHail: xanh khi chưa có mưa đối lưu (showers < gate) dù CAPE cao', () => {
+  assert.equal(classifyHail(3000, 3000, 0.5), 'green');
+  assert.equal(classifyHail(3000, 3000, 0), 'green');
 });
 
-test('classifyColdDamage: rét đậm (13°C đến 15°C)', () => {
-  assert.equal(classifyColdDamage(13.1), 'yellow');
-  assert.equal(classifyColdDamage(15), 'yellow');
+test('classifyHail: đỏ khi CAPE mạnh + mực đóng băng thấp', () => {
+  assert.equal(classifyHail(2500, 3500, 5), 'red');
+  assert.equal(classifyHail(3000, 2000, 10), 'red');
 });
 
-test('classifyColdDamage: bình thường (> 15°C)', () => {
-  assert.equal(classifyColdDamage(15.1), 'green');
-  assert.equal(classifyColdDamage(28), 'green');
+test('classifyHail: cam khi CAPE vừa + mực đóng băng <= 4500m', () => {
+  assert.equal(classifyHail(1500, 4500, 5), 'orange');
+  assert.equal(classifyHail(2499, 3501, 5), 'orange');
+});
+
+test('classifyHail: vàng khi CAPE vừa nhưng mực đóng băng cao, hoặc CAPE yếu', () => {
+  assert.equal(classifyHail(1500, 4500.1, 5), 'yellow');
+  assert.equal(classifyHail(500, 5000, 5), 'yellow');
+  assert.equal(classifyHail(1499, 5000, 5), 'yellow');
+});
+
+test('classifyHail: xanh khi CAPE dưới ngưỡng yếu', () => {
+  assert.equal(classifyHail(499, 3000, 5), 'green');
+});
+
+test('classifyLandslide: đỏ khi mưa tích luỹ 3 ngày > 350mm và đất bão hoà', () => {
+  assert.equal(classifyLandslide(350.1, 0.35), 'red');
+  assert.equal(classifyLandslide(500, 0.5), 'red');
+});
+
+test('classifyLandslide: cam khi mưa > 200mm và đất ẩm vừa trở lên', () => {
+  assert.equal(classifyLandslide(200.1, 0.25), 'orange');
+  assert.equal(classifyLandslide(350, 0.34), 'orange'); // không đỏ vì đất chưa bão hoà
+});
+
+test('classifyLandslide: vàng khi mưa > 200mm nhưng đất chưa đủ ẩm', () => {
+  assert.equal(classifyLandslide(400, 0.2), 'yellow');
+});
+
+test('classifyLandslide: vàng khi mưa tích luỹ >= 100mm hoặc đất đã bão hoà', () => {
+  assert.equal(classifyLandslide(100, 0.1), 'yellow');
+  assert.equal(classifyLandslide(200, 0.1), 'yellow');
+  assert.equal(classifyLandslide(0, 0.35), 'yellow');
+});
+
+test('classifyLandslide: xanh (bình thường)', () => {
+  assert.equal(classifyLandslide(99.9, 0.24), 'green');
 });
 
 test('classifyHeavyRainFloodRisk: đỏ (> 400mm/24h)', () => {

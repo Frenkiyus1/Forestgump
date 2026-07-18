@@ -1,7 +1,7 @@
 # Forestgump AI Engine
 
-Dịch vụ **FastAPI** đánh giá rủi ro + sinh bản tin cảnh báo sớm 3 loại thiên
-tai tại Điện Biên: **rét đậm/rét hại**, **mưa lớn/lũ quét**, **sương mù
+Dịch vụ **FastAPI** đánh giá rủi ro + sinh bản tin cảnh báo sớm 4 loại thiên
+tai tại Điện Biên: **mưa đá**, **sạt lở đất**, **mưa lớn/lũ quét**, **sương mù
 dày**. Đây là service AI trung tâm của hệ thống Forestgump (xem
 `docs/architecture.md` cho kiến trúc toàn hệ thống, `../CLAUDE.md` cho tổng
 quan monorepo).
@@ -240,9 +240,9 @@ sequenceDiagram
         APP->>RE: compute_risk(location, forecast[i])
         RE->>DS: downscale_temperature(temp, elevation_grid, elevation_target)
         DS-->>RE: nhiệt độ đã hiệu chỉnh
-        RE->>TH: classify_cold_damage / classify_heavy_rain_flood_risk / classify_fog
+        RE->>TH: classify_hail / classify_landslide / classify_heavy_rain_flood_risk / classify_fog
         TH-->>RE: alert_level từng hiểm hoạ
-        RE-->>APP: RiskAssessment{hazards: [3 x HazardRisk]}
+        RE-->>APP: RiskAssessment{hazards: [4 x HazardRisk]}
         APP->>BU: generate_bulletin(location, risk)
         BU-->>APP: chuỗi bản tin tiếng Việt (điền template)
     end
@@ -473,7 +473,9 @@ Nhận 1 địa điểm + dự báo 3-7 ngày (khớp `DailyForecast` trong
   "forecast": [
     {
       "date": "2026-07-17", "temp_min_c": 11.5, "temp_max_c": 13.0, "precipitation_mm": 250.0,
-      "humidity_pct": 96.0, "dew_point_c": 12.0, "wind_speed_kmh": 4.0
+      "humidity_pct": 96.0, "dew_point_c": 12.0, "wind_speed_kmh": 4.0,
+      "cape_max_jkg": 1800.0, "freezing_level_min_m": 4200.0, "soil_moisture_9_to_27cm": 0.3,
+      "showers_sum_mm": 8.0, "rain_3d_mm": 260.0
     }
   ]
 }
@@ -488,12 +490,13 @@ Trả về (rule engine, luôn hoạt động):
       "risk": {
         "location_code": "tua-chua", "date": "2026-07-17",
         "hazards": [
-          {"hazard": "cold_damage", "alert_level": "yellow", "risk_score": 41.2, "detail": "..."},
+          {"hazard": "hail", "alert_level": "yellow", "risk_score": 41.2, "detail": "..."},
+          {"hazard": "landslide", "alert_level": "green", "risk_score": 12.0, "detail": "..."},
           {"hazard": "heavy_rain_flood", "alert_level": "red", "risk_score": 92.4, "detail": "..."},
           {"hazard": "fog", "alert_level": "green", "risk_score": 8.0, "detail": "..."}
         ]
       },
-      "bulletin": "[Dân/cán bộ xã] Cảnh báo RÉT ĐẬM ...\n[Dân/cán bộ xã] NGUY HIỂM: LŨ QUÉT ..."
+      "bulletin": "[Dân/cán bộ xã] Cảnh báo NGUY CƠ MƯA ĐÁ ...\n[Dân/cán bộ xã] NGUY HIỂM: LŨ QUÉT ..."
     }
   ]
 }

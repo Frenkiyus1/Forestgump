@@ -1,4 +1,4 @@
-"""Rule engine tính risk score cho 3 hiểm hoạ Điện Biên (MVP).
+"""Rule engine tính risk score cho 4 hiểm hoạ Điện Biên (MVP).
 
 Đây là RULE-BASED (if/threshold) dựa thẳng trên ngưỡng đã xác nhận trong
 thresholds.py — KHÔNG phải machine learning. Phần ML (xác suất lũ quét) là
@@ -7,7 +7,7 @@ optional, xem train_flood.py.
 compute_risk() nhận dự báo 1 ngày (khớp bảng weather_forecast / DailyForecast
 trong backend/src/weather-types.ts) và thông tin địa điểm (khớp
 backend/src/config/locations.ts), trả về risk score 0-100 + alert level riêng
-cho từng hiểm hoạ: rét đậm/rét hại, mưa lớn/lũ quét, sương mù dày.
+cho từng hiểm hoạ: mưa đá, sạt lở đất, mưa lớn/lũ quét, sương mù dày.
 """
 
 from __future__ import annotations
@@ -18,27 +18,34 @@ from pydantic import BaseModel
 
 from downscale import downscale_temperature, fog_risk_factor
 from thresholds import (
-    COLD_DAMP_MAX_C,
-    COLD_SEVERE_MAX_C,
     DENSE_FOG_MAX_VISIBILITY_M,
     FOG_MAX_VISIBILITY_M,
     FOG_RISK_FACTOR_RED_MIN,
     FOG_RISK_FACTOR_YELLOW_MIN,
+    HAIL_CAPE_MODERATE_MIN_JKG,
+    HAIL_CAPE_STRONG_MIN_JKG,
+    HAIL_CAPE_WEAK_MIN_JKG,
+    HAIL_FREEZING_LEVEL_HIGH_RISK_MAX_M,
     HEAVY_RAIN_L1_MIN_24H_MM,
     HEAVY_RAIN_L2_MIN_24H_MM,
     HEAVY_RAIN_L3_MIN_24H_MM,
+    LANDSLIDE_RAIN3D_L1_MIN_MM,
+    LANDSLIDE_RAIN3D_L2_MIN_MM,
+    LANDSLIDE_RAIN3D_L3_MIN_MM,
+    LANDSLIDE_TERRAIN_MULTIPLIER,
     SCORE_ORANGE_MIN,
     SCORE_RED_MIN,
     SCORE_YELLOW_MIN,
     TERRAIN_FLOOD_MULTIPLIER,
     AlertLevel,
-    classify_cold_damage,
     classify_fog,
+    classify_hail,
     classify_heavy_rain_flood_risk,
+    classify_landslide,
 )
 
 Terrain = Literal["thung_lung", "nui_cao", "ven_suoi"]
-Hazard = Literal["cold_damage", "heavy_rain_flood", "fog"]
+Hazard = Literal["hail", "landslide", "heavy_rain_flood", "fog"]
 
 _ALERT_LEVEL_ORDER: list[AlertLevel] = ["green", "yellow", "orange", "red"]
 
@@ -72,6 +79,14 @@ class ForecastInput(BaseModel):
     humidity_max_pct: Optional[float] = None  # độ ẩm cao nhất trong ngày
     wind_gusts_kmh: Optional[float] = None  # gió giật mạnh nhất trong ngày
     soil_moisture_0_1: Optional[float] = None  # độ ẩm đất 0-1cm trung bình ngày (m³/m³)
+    # Dùng cho mưa đá/sạt lở đất — CHỈ có khi nguồn là Open-Meteo. `None` trên
+    # fallback OpenWeatherMap (không có CAPE/mực đóng băng/độ ẩm đất) khiến
+    # _hail_risk()/_landslide_risk() trả "chưa đánh giá được" thay vì bịa số liệu.
+    cape_max_jkg: Optional[float] = None
+    freezing_level_min_m: Optional[float] = None
+    soil_moisture_9_to_27cm: Optional[float] = None
+    showers_sum_mm: Optional[float] = None
+    rain_3d_mm: Optional[float] = None
 
 
 class HazardRisk(BaseModel):
@@ -112,28 +127,100 @@ def _clamp_score_to_level(score: float, level: AlertLevel) -> float:
     return _clamp(score, lo, hi)
 
 
-def _cold_damage_risk(forecast: ForecastInput) -> HazardRisk:
-    avg_temp_c = (forecast.temp_min_c + forecast.temp_max_c) / 2.0
-    level = classify_cold_damage(avg_temp_c)
-
-    if level == "red":
-        frac = _clamp((COLD_SEVERE_MAX_C - avg_temp_c) / COLD_SEVERE_MAX_C, 0.0, 1.0)
-        score = SCORE_RED_MIN + frac * (100.0 - SCORE_RED_MIN)
-        detail = f"Nhiệt độ TB {avg_temp_c:.1f}°C <= {COLD_SEVERE_MAX_C:.0f}°C — rét hại."
-    elif level == "yellow":
-        span = COLD_DAMP_MAX_C - COLD_SEVERE_MAX_C
-        frac = _clamp((COLD_DAMP_MAX_C - avg_temp_c) / span, 0.0, 1.0)
-        score = SCORE_YELLOW_MIN + frac * (SCORE_ORANGE_MIN - SCORE_YELLOW_MIN)
+def _hail_risk(forecast: ForecastInput) -> HazardRisk:
+    if (
+        forecast.cape_max_jkg is None
+        or forecast.freezing_level_min_m is None
+        or forecast.showers_sum_mm is None
+    ):
         detail = (
-            f"Nhiệt độ TB {avg_temp_c:.1f}°C trong khoảng rét đậm "
-            f"({COLD_SEVERE_MAX_C:.0f}-{COLD_DAMP_MAX_C:.0f}°C)."
+            "Thiếu dữ liệu CAPE/mực đóng băng (nguồn dự phòng OpenWeatherMap) — "
+            "CHƯA đánh giá được nguy cơ mưa đá, KHÔNG đồng nghĩa an toàn."
         )
-    else:
-        frac = _clamp((avg_temp_c - COLD_DAMP_MAX_C) / 10.0, 0.0, 1.0)
-        score = SCORE_YELLOW_MIN * (1.0 - frac)
-        detail = f"Nhiệt độ TB {avg_temp_c:.1f}°C > {COLD_DAMP_MAX_C:.0f}°C — chưa tới ngưỡng rét đậm."
+        return HazardRisk(hazard="hail", alert_level="green", risk_score=0.0, detail=detail)
 
-    return HazardRisk(hazard="cold_damage", alert_level=level, risk_score=round(score, 1), detail=detail)
+    cape = forecast.cape_max_jkg
+    freezing_level = forecast.freezing_level_min_m
+    showers = forecast.showers_sum_mm
+    level = classify_hail(cape, freezing_level, showers)
+
+    # Điểm liên tục 0-100 theo CAPE, neo vào 3 mốc ngưỡng đã định nghĩa.
+    if cape <= 0 or showers <= 0:
+        raw_score = 0.0
+    elif cape < HAIL_CAPE_WEAK_MIN_JKG:
+        raw_score = (cape / HAIL_CAPE_WEAK_MIN_JKG) * SCORE_YELLOW_MIN
+    elif cape <= HAIL_CAPE_MODERATE_MIN_JKG:
+        span = HAIL_CAPE_MODERATE_MIN_JKG - HAIL_CAPE_WEAK_MIN_JKG
+        frac = (cape - HAIL_CAPE_WEAK_MIN_JKG) / span
+        raw_score = SCORE_YELLOW_MIN + frac * (SCORE_ORANGE_MIN - SCORE_YELLOW_MIN)
+    elif cape <= HAIL_CAPE_STRONG_MIN_JKG:
+        span = HAIL_CAPE_STRONG_MIN_JKG - HAIL_CAPE_MODERATE_MIN_JKG
+        frac = (cape - HAIL_CAPE_MODERATE_MIN_JKG) / span
+        raw_score = SCORE_ORANGE_MIN + frac * (SCORE_RED_MIN - SCORE_ORANGE_MIN)
+    else:
+        frac = _clamp((cape - HAIL_CAPE_STRONG_MIN_JKG) / HAIL_CAPE_STRONG_MIN_JKG, 0.0, 1.0)
+        raw_score = SCORE_RED_MIN + frac * (100.0 - SCORE_RED_MIN)
+
+    # Mực đóng băng thấp làm tăng khả năng đá rơi tới đất -> khuếch đại điểm.
+    freezing_multiplier = 1.15 if freezing_level <= HAIL_FREEZING_LEVEL_HIGH_RISK_MAX_M else 1.0
+    score = _clamp(raw_score * freezing_multiplier)
+
+    detail = (
+        f"CAPE {cape:.0f} J/kg, mực đóng băng {freezing_level:.0f}m, mưa đối lưu "
+        f"{showers:.0f}mm — proxy heuristic, CHƯA có quy định VN chính thức."
+    )
+    return HazardRisk(hazard="hail", alert_level=level, risk_score=round(score, 1), detail=detail)
+
+
+def _landslide_risk(forecast: ForecastInput, terrain: Terrain) -> HazardRisk:
+    if forecast.rain_3d_mm is None or forecast.soil_moisture_9_to_27cm is None:
+        detail = (
+            "Thiếu dữ liệu độ ẩm đất/mưa tích luỹ (nguồn dự phòng OpenWeatherMap) — "
+            "CHƯA đánh giá được nguy cơ sạt lở đất, KHÔNG đồng nghĩa an toàn."
+        )
+        return HazardRisk(hazard="landslide", alert_level="green", risk_score=0.0, detail=detail)
+
+    rain_3d = forecast.rain_3d_mm
+    soil_moisture = forecast.soil_moisture_9_to_27cm
+    base_level = classify_landslide(rain_3d, soil_moisture)
+
+    # Điểm liên tục 0-100 theo mưa tích luỹ 3 ngày, neo vào 3 mốc ngưỡng đã định nghĩa.
+    if rain_3d <= 0:
+        raw_score = 0.0
+    elif rain_3d < LANDSLIDE_RAIN3D_L1_MIN_MM:
+        raw_score = (rain_3d / LANDSLIDE_RAIN3D_L1_MIN_MM) * SCORE_YELLOW_MIN
+    elif rain_3d <= LANDSLIDE_RAIN3D_L2_MIN_MM:
+        span = LANDSLIDE_RAIN3D_L2_MIN_MM - LANDSLIDE_RAIN3D_L1_MIN_MM
+        frac = (rain_3d - LANDSLIDE_RAIN3D_L1_MIN_MM) / span
+        raw_score = SCORE_YELLOW_MIN + frac * (SCORE_ORANGE_MIN - SCORE_YELLOW_MIN)
+    elif rain_3d <= LANDSLIDE_RAIN3D_L3_MIN_MM:
+        span = LANDSLIDE_RAIN3D_L3_MIN_MM - LANDSLIDE_RAIN3D_L2_MIN_MM
+        frac = (rain_3d - LANDSLIDE_RAIN3D_L2_MIN_MM) / span
+        raw_score = SCORE_ORANGE_MIN + frac * (SCORE_RED_MIN - SCORE_ORANGE_MIN)
+    else:
+        frac = _clamp((rain_3d - LANDSLIDE_RAIN3D_L3_MIN_MM) / LANDSLIDE_RAIN3D_L3_MIN_MM, 0.0, 1.0)
+        raw_score = SCORE_RED_MIN + frac * (100.0 - SCORE_RED_MIN)
+
+    terrain_multiplier = LANDSLIDE_TERRAIN_MULTIPLIER.get(terrain, 1.0)
+    adjusted_score = _clamp(raw_score * terrain_multiplier)
+
+    # Địa hình khuếch đại rủi ro đủ để vượt sang band kế tiếp -> nâng tối đa 1 cấp
+    # (heuristic dự án, xem thresholds.py).
+    level = base_level
+    if terrain_multiplier > 1.0:
+        if base_level == "yellow" and adjusted_score >= SCORE_ORANGE_MIN:
+            level = _escalate(base_level)
+        elif base_level == "orange" and adjusted_score >= SCORE_RED_MIN:
+            level = _escalate(base_level)
+
+    detail = (
+        f"Mưa tích luỹ 3 ngày {rain_3d:.0f}mm, độ ẩm đất {soil_moisture:.2f} m³/m³ "
+        f"tại địa hình '{terrain}' (hệ số x{terrain_multiplier:.2f}) — proxy heuristic, "
+        "CHƯA có dữ liệu độ dốc/DEM chính thức."
+    )
+    return HazardRisk(
+        hazard="landslide", alert_level=level, risk_score=round(adjusted_score, 1), detail=detail
+    )
 
 
 def _heavy_rain_flood_risk(forecast: ForecastInput, terrain: Terrain) -> HazardRisk:
@@ -254,12 +341,13 @@ def _fog_risk(forecast: ForecastInput, terrain: Terrain) -> HazardRisk:
 
 
 def compute_risk(location: LocationInput, forecast: ForecastInput) -> RiskAssessment:
-    """Đánh giá rủi ro 3 hiểm hoạ cho 1 ngày dự báo tại 1 địa điểm.
+    """Đánh giá rủi ro 4 hiểm hoạ cho 1 ngày dự báo tại 1 địa điểm.
 
     Hiệu chỉnh nhiệt độ theo cao độ thực tế (downscale_temperature) trước khi
-    phân loại rét đậm/rét hại và tính hệ số sương mù. Nếu forecast không kèm
-    elevation_grid_m (Phase 1 hiện chưa cung cấp), coi độ cao ô lưới = độ cao
-    thực tế của địa điểm -> không hiệu chỉnh (delta = 0), tránh bịa số liệu.
+    tính hệ số sương mù. Nếu forecast không kèm elevation_grid_m (Phase 1 hiện
+    chưa cung cấp), coi độ cao ô lưới = độ cao thực tế của địa điểm -> không
+    hiệu chỉnh (delta = 0), tránh bịa số liệu. Mưa đá/sạt lở đất không phụ
+    thuộc nhiệt độ nên dùng thẳng forecast gốc, không downscale.
     """
     elevation_grid = (
         forecast.elevation_grid_m if forecast.elevation_grid_m is not None else location.elevation_m
@@ -272,7 +360,8 @@ def compute_risk(location: LocationInput, forecast: ForecastInput) -> RiskAssess
     )
 
     hazards = [
-        _cold_damage_risk(corrected),
+        _hail_risk(forecast),
+        _landslide_risk(forecast, location.terrain),
         _heavy_rain_flood_risk(forecast, location.terrain),  # mưa không hiệu chỉnh theo cao độ
         _fog_risk(corrected, location.terrain),
     ]

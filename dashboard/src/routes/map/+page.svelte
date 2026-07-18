@@ -4,6 +4,7 @@
 	import { HOTSPOT_REGIONS } from '$lib/dienbien-hotspots';
 	import {
 		DIENBIEN_HAZARD_LABEL,
+		DIENBIEN_HAZARDS,
 		buildRegionHeat,
 		pickDefaultHazard,
 		availableDays
@@ -27,8 +28,6 @@
 		buildRegionHeat(HOTSPOT_REGIONS, data.forecastEntries, selectedHazard, selectedDayIndex)
 	);
 
-	const HAZARDS: DienBienHazard[] = ['cold_damage', 'heavy_rain_flood', 'fog'];
-
 	function selectRegion(id: number) {
 		const region = HOTSPOT_REGIONS.find((item) => item.id === id) ?? null;
 		if (!region) return;
@@ -48,7 +47,7 @@
 <AppShell compact={true} noHeader={true}>
 	<header class="mb-3 text-center">
 		<h1 class="text-[28px] font-semibold tracking-tight text-gray-900">
-			Bản đồ tỉnh Điện Biên (sau sát nhập)
+			Bản đồ tỉnh Điện Biên
 		</h1>
 		<div class="mx-auto mt-1.5 h-0.5 w-16 rounded-full bg-gradient-to-r from-transparent via-accent to-transparent"></div>
 	</header>
@@ -66,7 +65,7 @@
 
 	<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
 		<div class="flex flex-wrap items-center gap-2">
-			{#each HAZARDS as hazard (hazard)}
+			{#each DIENBIEN_HAZARDS as hazard (hazard)}
 				<button
 					type="button"
 					onclick={() => (selectedHazard = hazard)}

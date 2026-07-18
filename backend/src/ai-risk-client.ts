@@ -1,8 +1,9 @@
-// Client gọi AI Engine POST /assess-risk (đánh giá rủi ro Điện Biên: rét
-// đậm/rét hại, mưa lớn/lũ quét, sương mù dày). /assess-risk là rule-based
-// và KHÔNG có mock mode ở phía ai_engine (xem app.py) — lỗi ở đây nghĩa là
-// ai_engine thật sự down/lỗi mạng, nên hàm dưới đây ném lỗi rõ ràng thay vì
-// âm thầm fallback.
+// Client gọi AI Engine POST /assess-risk (đánh giá rủi ro Điện Biên: mưa đá,
+// sạt lở đất, mưa lớn/lũ quét, sương mù dày). KHÔNG dùng chung biến
+// AI_ENGINE_URL trong index.ts — biến đó trỏ .../predict cho luồng độ mặn
+// cũ. Khác với /predict, /assess-risk là rule-based và KHÔNG có mock mode ở
+// phía ai_engine (xem app.py) — lỗi ở đây nghĩa là ai_engine thật sự
+// down/lỗi mạng, nên hàm dưới đây ném lỗi rõ ràng thay vì âm thầm fallback.
 
 import 'dotenv/config';
 import type { DienBienLocation } from './config/locations.js';
@@ -61,6 +62,13 @@ export async function assessRisk(
           humidity_max_pct: d.humidityMaxPct,
           wind_gusts_kmh: d.windGustsMaxKmh,
           soil_moisture_0_1: d.soilMoisture01,
+          // Chỉ có khi nguồn là Open-Meteo — undefined trên fallback OpenWeatherMap
+          // khiến ai_engine coi mưa đá/sạt lở đất là "chưa đánh giá được" (xem risk_engine.py).
+          cape_max_jkg: d.capeMaxJkg,
+          freezing_level_min_m: d.freezingLevelMinM,
+          soil_moisture_9_to_27cm: d.soilMoisture9to27cm,
+          showers_sum_mm: d.showersSumMm,
+          rain_3d_mm: d.rain3dSumMm,
         })),
       }),
     });

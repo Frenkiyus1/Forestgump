@@ -2,8 +2,8 @@
 **Project Context & Instructions for AI Assistant**
 
 ## 1. Project Overview
-Forestgump là hệ thống cảnh báo sớm 3 loại thiên tai tại Điện Biên: **mưa
-lớn/lũ quét**, **rét đậm/rét hại**, **sương mù dày**. Hệ thống lấy dự báo
+Forestgump là hệ thống cảnh báo sớm 4 loại thiên tai tại Điện Biên: **mưa
+lớn/lũ quét**, **mưa đá**, **sạt lở đất**, **sương mù dày**. Hệ thống lấy dự báo
 thời tiết từ Open-Meteo (nguồn chính, có fallback OpenWeatherMap), đánh giá
 rủi ro bằng rule engine (ngưỡng đã xác nhận, không phải ML), sinh bản tin
 cảnh báo bằng template cố định, và hiển thị trên Dashboard web. Kiến trúc
@@ -105,7 +105,7 @@ interface DienBienForecastEntry {
   days: {
     date: string; tempMinC: number; tempMaxC: number; precipitationMm: number;
     humidityPct: number; windSpeedKmh: number;
-    hazards: { hazard: 'cold_damage' | 'heavy_rain_flood' | 'fog'; alert_level: 'green'|'yellow'|'orange'|'red'; risk_score: number; detail: string }[];
+    hazards: { hazard: 'hail' | 'landslide' | 'heavy_rain_flood' | 'fog'; alert_level: 'green'|'yellow'|'orange'|'red'; risk_score: number; detail: string }[];
     bulletin: string;
   }[];
   aiEngineError?: string;

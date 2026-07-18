@@ -14,6 +14,7 @@
 	import type { RegionHeat } from '$lib/dienbien-heatmap';
 	import type { DienBienForecastEntry } from '$lib/types';
 	import RegionHazardHeatmap from './region-hazard-heatmap.svelte';
+	import DataSourceNote from './data-source-note.svelte';
 
 	interface Props {
 		regions: DienBienHotspot[];
@@ -115,6 +116,15 @@
 		const b = n & 255;
 		return `rgba(${r},${g},${b},${alpha})`;
 	}
+
+	// Kẹp vị trí tooltip pin trong biên [MIN, MAX]% để không tràn ra ngoài card
+	// khi vùng đang trỏ nằm sát rìa trên/trái/phải ảnh bản đồ.
+	const PIN_EDGE_MARGIN_PCT = 8;
+	function clampPct(value: number): number {
+		return Math.min(100 - PIN_EDGE_MARGIN_PCT, Math.max(PIN_EDGE_MARGIN_PCT, value));
+	}
+	const pinLeftPct = $derived(pinPos ? clampPct((pinPos.x / 926) * 100) : 0);
+	const pinTopPct = $derived(pinPos ? clampPct((pinPos.y / 1178) * 100) : 0);
 </script>
 
 <div class="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_minmax(0,26rem)]">
@@ -183,10 +193,10 @@
 				{#if pinPos && pinRegion}
 					<div
 						class="pointer-events-none absolute z-10"
-						style="left: {(pinPos.x / 926) * 100}%; top: {(pinPos.y / 1178) * 100}%;"
+						style="left: {pinLeftPct}%; top: {pinTopPct}%;"
 					>
 					<div
-						class="min-w-[160px] max-w-[260px] rounded-xl bg-[rgba(17,24,39,0.92)] px-3 py-2 text-[15px] text-white shadow-xl"
+						class="min-w-[160px] max-w-[260px] rounded-xl bg-slate-900/95 px-3 py-2 text-[15px] text-white shadow-xl"
 					>
 							<small class="block text-amber-200">Đơn vị số {pinRegion.id}</small>
 							<strong class="block text-white">{pinRegion.name}</strong>
@@ -231,7 +241,7 @@
 
 		{#if heat}
 			<div
-				class="pointer-events-none absolute left-3 bottom-3 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[15px] shadow-lg"
+				class="pointer-events-none absolute left-3 bottom-3 z-20 rounded-xl bg-white/95 px-3 py-2 text-[15px] shadow-lg"
 			>
 				<p class="mb-1.5 font-semibold text-gray-700">Chú giải</p>
 				<div class="flex flex-col gap-1">
@@ -260,7 +270,7 @@
 			placeholder="Tìm xã/phường…"
 			autocomplete="off"
 			bind:value={searchQuery}
-			class="w-full shrink-0 rounded border border-[#d0d7e2] px-1.5 py-1 text-[15px]"
+			class="w-full shrink-0 rounded border border-gray-200 px-1.5 py-1 text-[15px]"
 		/>
 
 		<div class="flex min-h-0 flex-1 flex-col gap-px overflow-auto">
@@ -288,8 +298,8 @@
 					class={clsx(
 						'flex items-center gap-2 rounded border-0 px-3 py-1.5 text-left text-[15px] transition',
 						selectedId === region.id
-							? 'bg-[#fef3c7] text-[#92400e]'
-							: 'bg-[#f7f9fc] hover:bg-[#fef3c7] hover:text-[#92400e]'
+							? 'bg-amber-100 text-amber-800'
+							: 'bg-gray-50 hover:bg-amber-100 hover:text-amber-800'
 					)}
 				>
 					{#if regionHeat}
@@ -304,7 +314,7 @@
 			{/each}
 		</div>
 
-		<p class="shrink-0 text-[15px] text-[#667085]">
+		<p class="shrink-0 text-[15px] text-gray-500">
 			Bấm vào vùng trên bản đồ hoặc danh sách.
 		</p>
 	</aside>
@@ -315,3 +325,5 @@
 		<RegionHazardHeatmap entry={selectedAnchorEntry} />
 	</div>
 {/if}
+
+<DataSourceNote {forecastEntries} />

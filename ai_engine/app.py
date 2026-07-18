@@ -2,8 +2,8 @@
 
 Nhận dự báo thời tiết nhiều ngày (từ backend/src/weather-ingest.ts, nguồn
 Open-Meteo/OpenWeatherMap) qua HTTP POST, áp dụng rule engine (risk_engine.py,
-thresholds.py — KHÔNG phải machine learning) để đánh giá rủi ro rét đậm/rét
-hại, mưa lớn/lũ quét, sương mù, rồi sinh bản tin cảnh báo bằng template cố
+thresholds.py — KHÔNG phải machine learning) để đánh giá rủi ro mưa đá, sạt
+lở đất, mưa lớn/lũ quét, sương mù, rồi sinh bản tin cảnh báo bằng template cố
 định đã kiểm duyệt trước (bulletin.py — CỐ TÌNH KHÔNG dùng LLM tự do sinh
 nội dung an toàn tính mạng). Rule-based nên luôn hoạt động, không có mock
 mode.
@@ -12,7 +12,7 @@ Ngoài ra có 3 nhánh ML chạy SONG SONG, KHÔNG thay thế rule engine:
 - [OPTIONAL/DEMO] /predict-flood-risk dùng XGBoost nhị phân (train_flood.py)
   làm THAM KHẢO bổ sung cho xác suất lũ quét.
 - [SHADOW/DEMO] /assess-risk-ml dùng XGBoost multi-hazard (ml_engine.py,
-  distill từ compute_risk() trên dữ liệu tổng hợp) tính lại đúng 3 hiểm hoạ
+  distill từ compute_risk() trên dữ liệu tổng hợp) tính lại đúng 4 hiểm hoạ
   của /assess-risk để so sánh/demo — tự fallback rule engine nếu model chưa
   sẵn sàng.
 - [THAM KHẢO] /assess-terrain-risk (+ biến thể -live, /terrain-communes):
@@ -86,7 +86,7 @@ class AssessRiskResponse(BaseModel):
 
 @app.post("/assess-risk", response_model=AssessRiskResponse)
 def assess_risk(data: AssessRiskRequest) -> AssessRiskResponse:
-    """Đánh giá rủi ro (rét đậm/rét hại, mưa lớn/lũ quét, sương mù dày) + bản tin
+    """Đánh giá rủi ro (mưa đá, sạt lở đất, mưa lớn/lũ quét, sương mù dày) + bản tin
     cảnh báo cho từng ngày trong dự báo Điện Biên. Rule-based (risk_engine.py),
     không phụ thuộc model ML nên luôn hoạt động (không có mock mode)."""
     days: list[DayAssessment] = []

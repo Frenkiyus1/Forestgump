@@ -15,7 +15,8 @@ def _risk(*hazards: HazardRisk) -> RiskAssessment:
 class TestGenerateBulletin(unittest.TestCase):
     def test_all_green_returns_normal_message(self):
         risk = _risk(
-            HazardRisk(hazard="cold_damage", alert_level="green", risk_score=0, detail="x"),
+            HazardRisk(hazard="hail", alert_level="green", risk_score=0, detail="x"),
+            HazardRisk(hazard="landslide", alert_level="green", risk_score=0, detail="x"),
             HazardRisk(hazard="heavy_rain_flood", alert_level="green", risk_score=0, detail="x"),
             HazardRisk(hazard="fog", alert_level="green", risk_score=0, detail="x"),
         )
@@ -34,7 +35,7 @@ class TestGenerateBulletin(unittest.TestCase):
 
     def test_only_non_green_hazards_are_included(self):
         risk = _risk(
-            HazardRisk(hazard="cold_damage", alert_level="green", risk_score=0, detail="x"),
+            HazardRisk(hazard="hail", alert_level="green", risk_score=0, detail="x"),
             HazardRisk(hazard="fog", alert_level="red", risk_score=90, detail="x"),
         )
         text = generate_bulletin(LOCATION, risk)
@@ -44,16 +45,16 @@ class TestGenerateBulletin(unittest.TestCase):
 
     def test_multiple_hazards_each_get_own_line(self):
         risk = _risk(
-            HazardRisk(hazard="cold_damage", alert_level="yellow", risk_score=40, detail="x"),
+            HazardRisk(hazard="landslide", alert_level="yellow", risk_score=40, detail="x"),
             HazardRisk(hazard="heavy_rain_flood", alert_level="orange", risk_score=70, detail="x"),
         )
         text = generate_bulletin(LOCATION, risk)
         self.assertEqual(len(text.split("\n")), 2)
 
     def test_unsupported_lang_falls_back_to_vi(self):
-        risk = _risk(HazardRisk(hazard="cold_damage", alert_level="red", risk_score=90, detail="x"))
+        risk = _risk(HazardRisk(hazard="landslide", alert_level="red", risk_score=90, detail="x"))
         text = generate_bulletin(LOCATION, risk, lang="th")
-        self.assertIn("RÉT HẠI", text)
+        self.assertIn("SẠT LỞ ĐẤT", text)
 
 
 if __name__ == "__main__":

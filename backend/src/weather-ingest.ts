@@ -6,10 +6,15 @@ import 'dotenv/config';
 import { DIEN_BIEN_LOCATIONS, type DienBienLocation } from './config/locations.js';
 import { openMeteoForecastSchema } from './schemas.js';
 import { fetchOpenWeatherMapForecast } from './weather-openweathermap.js';
+import { maxPerDay, meanPerDay, minPerDay, rollingSum } from './weather-aggregate.js';
 import type { DailyForecast, LocationWeather } from './weather-types.js';
 
 const OPEN_METEO_URL = 'https://api.open-meteo.com/v1/forecast';
 const FORECAST_DAYS = 7;
+// Số ngày quá khứ lấy thêm để tính mưa tích luỹ 3 ngày cho sạt lở đất — KHÔNG
+// dùng để trả về cho dashboard (bị cắt bỏ khi build `days`, xem `fetchOpenMeteoForecast`).
+const PAST_DAYS = 3;
+const RAIN_ROLLING_WINDOW_DAYS = 3;
 const TIMEZONE = 'Asia/Bangkok'; // UTC+7, khớp giờ Việt Nam
 const FETCH_TIMEOUT_MS = Number(process.env.WEATHER_FETCH_TIMEOUT_MS ?? 8000);
 // Open-Meteo cập nhật model theo giờ -> cache 1h là đủ tươi, tránh gọi API
@@ -23,13 +28,18 @@ const DAILY_PARAMS = [
   'relative_humidity_2m_mean',
   'dew_point_2m_mean',
   'wind_speed_10m_mean',
+  'rain_sum',
+  'showers_sum',
 ].join(',');
 
-// Dữ liệu HOURLY — nguồn tín hiệu chính cho 3 hiểm hoạ mà daily không có:
+// Dữ liệu HOURLY — nguồn tín hiệu chính cho các hiểm hoạ mà daily không có:
 //  - precipitation: tính mưa 12h trượt (ngưỡng 50mm/12h) + mưa 1h cực đại
 //  - visibility: phân loại sương mù theo tầm nhìn thật (WMO, classify_fog)
 //  - temperature/dew_point/humidity: chênh nhiệt-điểm sương nhỏ nhất ban đêm
 //  - wind_gusts_10m, soil_moisture_0_to_1cm: đặc trưng bổ sung cho model ML
+//  - cape, freezing_level_height, soil_moisture_9_to_27cm: mưa đá + sạt lở đất
+//    (không có daily aggregate hợp lệ cho 3 field này trên Open-Meteo — phải
+//    gộp về theo ngày ở `fetchOpenMeteoForecast` bên dưới, xem weather-aggregate.ts).
 const HOURLY_PARAMS = [
   'precipitation',
   'visibility',
@@ -38,6 +48,9 @@ const HOURLY_PARAMS = [
   'relative_humidity_2m',
   'wind_gusts_10m',
   'soil_moisture_0_to_1cm',
+  'cape',
+  'freezing_level_height',
+  'soil_moisture_9_to_27cm',
 ].join(',');
 
 /** Đọc phần tử mảng an toàn (noUncheckedIndexedAccess) — ném lỗi rõ ràng nếu thiếu. */
@@ -173,6 +186,7 @@ export async function fetchOpenMeteoForecast(location: DienBienLocation): Promis
   url.searchParams.set('hourly', HOURLY_PARAMS);
   url.searchParams.set('timezone', TIMEZONE);
   url.searchParams.set('forecast_days', String(FORECAST_DAYS));
+  url.searchParams.set('past_days', String(PAST_DAYS));
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -192,16 +206,31 @@ export async function fetchOpenMeteoForecast(location: DienBienLocation): Promis
     const { current, daily, hourly, elevation } = parsed.data;
     const hourlyByDay = aggregateHourlyByDay(hourly);
 
-    const days: DailyForecast[] = daily.time.map((date, i) => ({
-      date,
-      tempMinC: at(daily.temperature_2m_min, i, 'temperature_2m_min'),
-      tempMaxC: at(daily.temperature_2m_max, i, 'temperature_2m_max'),
-      precipitationMm: at(daily.precipitation_sum, i, 'precipitation_sum'),
-      humidityPct: at(daily.relative_humidity_2m_mean, i, 'relative_humidity_2m_mean'),
-      dewPointC: at(daily.dew_point_2m_mean, i, 'dew_point_2m_mean'),
-      windSpeedKmh: at(daily.wind_speed_10m_mean, i, 'wind_speed_10m_mean'),
-      ...hourlyByDay.get(date),
-    }));
+    // `daily`/`hourly` chứa thêm PAST_DAYS ngày quá khứ đứng TRƯỚC phần dự báo (đã
+    // verify offset bằng gọi API thật) — dùng để tính mưa tích luỹ 3 ngày cho sạt
+    // lở đất, nhưng KHÔNG trả các ngày quá khứ đó ra ngoài cho dashboard.
+    const capeMaxByDate = maxPerDay(hourly.time, hourly.cape);
+    const freezingLevelMinByDate = minPerDay(hourly.time, hourly.freezing_level_height);
+    const soilMoistureMeanByDate = meanPerDay(hourly.time, hourly.soil_moisture_9_to_27cm);
+
+    const days: DailyForecast[] = daily.time.slice(PAST_DAYS).map((date, sliceIndex) => {
+      const i = sliceIndex + PAST_DAYS;
+      return {
+        date,
+        tempMinC: at(daily.temperature_2m_min, i, 'temperature_2m_min'),
+        tempMaxC: at(daily.temperature_2m_max, i, 'temperature_2m_max'),
+        precipitationMm: at(daily.precipitation_sum, i, 'precipitation_sum'),
+        humidityPct: at(daily.relative_humidity_2m_mean, i, 'relative_humidity_2m_mean'),
+        dewPointC: at(daily.dew_point_2m_mean, i, 'dew_point_2m_mean'),
+        windSpeedKmh: at(daily.wind_speed_10m_mean, i, 'wind_speed_10m_mean'),
+        ...hourlyByDay.get(date),
+        capeMaxJkg: capeMaxByDate.get(date),
+        freezingLevelMinM: freezingLevelMinByDate.get(date),
+        soilMoisture9to27cm: soilMoistureMeanByDate.get(date),
+        showersSumMm: at(daily.showers_sum, i, 'showers_sum'),
+        rain3dSumMm: rollingSum(daily.rain_sum, i, RAIN_ROLLING_WINDOW_DAYS),
+      };
+    });
 
     return {
       locationCode: location.code,

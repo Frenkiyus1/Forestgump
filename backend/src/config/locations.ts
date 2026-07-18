@@ -1,5 +1,5 @@
 // Cấu hình 3 địa điểm demo cho hệ thống cảnh báo thời tiết sớm Điện Biên
-// (rét đậm/rét hại, mưa lớn/lũ quét, sương mù dày).
+// (mưa đá, sạt lở đất, mưa lớn/lũ quét, sương mù dày).
 //
 // Toạ độ & độ cao lấy từ Open-Meteo Geocoding API + Elevation API (không tự
 // bịa số liệu): https://geocoding-api.open-meteo.com/v1/search và
@@ -51,8 +51,8 @@ export const DIEN_BIEN_LOCATIONS: DienBienLocation[] = [
     elevationM: 871,
     terrain: 'nui_cao',
     terrainNote:
-      'Vùng cao nguyên đá vôi, địa hình chia cắt mạnh, nhiều bản nằm trên 1000m — ' +
-      'nền nhiệt thấp hơn đáng kể so với trung tâm thành phố, rét hại xảy ra sớm và kéo dài hơn.',
+      'Vùng cao nguyên đá vôi, địa hình chia cắt mạnh, nhiều bản nằm trên 1000m, ' +
+      'sườn dốc đá vôi dễ sạt trượt khi đất bão hoà nước sau mưa kéo dài.',
   },
   {
     code: 'muong-nhe',

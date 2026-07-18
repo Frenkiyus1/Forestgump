@@ -5,20 +5,32 @@ import unittest
 
 from risk_engine import ForecastInput, LocationInput, compute_risk
 from thresholds import (
-    classify_cold_damage,
     classify_fog,
+    classify_hail,
     classify_heavy_rain_flood_risk,
+    classify_landslide,
 )
 
 
 class TestThresholds(unittest.TestCase):
     """Đối chiếu 1-1 với backend/src/alert-dienbien.test.ts (phải khớp)."""
 
-    def test_classify_cold_damage(self):
-        self.assertEqual(classify_cold_damage(13), "red")
-        self.assertEqual(classify_cold_damage(13.1), "yellow")
-        self.assertEqual(classify_cold_damage(15), "yellow")
-        self.assertEqual(classify_cold_damage(15.1), "green")
+    def test_classify_hail(self):
+        self.assertEqual(classify_hail(3000, 3000, 0.5), "green")  # dưới gate showers
+        self.assertEqual(classify_hail(2500, 3500, 5), "red")
+        self.assertEqual(classify_hail(1500, 4500, 5), "orange")
+        self.assertEqual(classify_hail(1500, 4500.1, 5), "yellow")
+        self.assertEqual(classify_hail(500, 5000, 5), "yellow")
+        self.assertEqual(classify_hail(499, 3000, 5), "green")
+
+    def test_classify_landslide(self):
+        self.assertEqual(classify_landslide(350.1, 0.35), "red")
+        self.assertEqual(classify_landslide(200.1, 0.25), "orange")
+        self.assertEqual(classify_landslide(350, 0.34), "orange")  # chưa đỏ vì đất chưa bão hoà
+        self.assertEqual(classify_landslide(400, 0.2), "yellow")
+        self.assertEqual(classify_landslide(100, 0.1), "yellow")
+        self.assertEqual(classify_landslide(0, 0.35), "yellow")
+        self.assertEqual(classify_landslide(99.9, 0.24), "green")
 
     def test_classify_heavy_rain_flood_risk(self):
         self.assertEqual(classify_heavy_rain_flood_risk(400.1), "red")
@@ -48,16 +60,22 @@ def _forecast(**overrides) -> ForecastInput:
         humidity_pct=80.0,
         dew_point_c=20.0,
         wind_speed_kmh=5.0,
+        # Baseline "không có mưa đá/sạt lở" — override riêng ở từng test cần.
+        cape_max_jkg=0.0,
+        freezing_level_min_m=5000.0,
+        soil_moisture_9_to_27cm=0.1,
+        showers_sum_mm=0.0,
+        rain_3d_mm=0.0,
     )
     base.update(overrides)
     return ForecastInput(**base)
 
 
 class TestComputeRisk(unittest.TestCase):
-    def test_returns_all_three_hazards(self):
+    def test_returns_all_hazards(self):
         risk = compute_risk(_location(), _forecast())
         hazards = {h.hazard for h in risk.hazards}
-        self.assertEqual(hazards, {"cold_damage", "heavy_rain_flood", "fog"})
+        self.assertEqual(hazards, {"hail", "landslide", "heavy_rain_flood", "fog"})
 
     def test_all_scores_in_range_and_finite(self):
         risk = compute_risk(_location(), _forecast())
@@ -66,21 +84,50 @@ class TestComputeRisk(unittest.TestCase):
             self.assertGreaterEqual(h.risk_score, 0.0)
             self.assertLessEqual(h.risk_score, 100.0)
 
-    def test_cold_hazard_matches_threshold_on_corrected_temp(self):
-        # 20°C ở lưới, độ cao lưới == độ cao địa điểm -> không hiệu chỉnh -> vẫn 20°C -> green.
-        risk = compute_risk(_location(), _forecast(temp_min_c=19.0, temp_max_c=21.0))
-        cold = next(h for h in risk.hazards if h.hazard == "cold_damage")
-        self.assertEqual(cold.alert_level, "green")
+    def test_hail_red_when_high_cape_low_freezing_level(self):
+        forecast = _forecast(cape_max_jkg=2600.0, freezing_level_min_m=3000.0, showers_sum_mm=10.0)
+        risk = compute_risk(_location(), forecast)
+        hail = next(h for h in risk.hazards if h.hazard == "hail")
+        self.assertEqual(hail.alert_level, "red")
 
-    def test_elevation_correction_can_push_into_cold_damage(self):
-        # Cùng nhiệt độ lưới nhưng địa điểm cao hơn nhiều (Tủa Chùa, 871m) so với
-        # lưới tham chiếu ở mực nước biển -> hiệu chỉnh giảm nhiệt đáng kể.
-        loc = _location(terrain="nui_cao", elevation_m=871.0)
-        forecast = _forecast(temp_min_c=18.0, temp_max_c=18.0, elevation_grid_m=0.0)
-        risk = compute_risk(loc, forecast)
-        cold = next(h for h in risk.hazards if h.hazard == "cold_damage")
-        # 871m * 0.65/100m ~= 5.66°C giảm -> 18 - 5.66 ~= 12.3°C -> rét hại.
-        self.assertEqual(cold.alert_level, "red")
+    def test_hail_green_when_showers_gate_fails(self):
+        # CAPE rất cao nhưng không có mưa đối lưu (showers) -> chưa đủ bằng chứng, xanh.
+        forecast = _forecast(cape_max_jkg=3000.0, freezing_level_min_m=3000.0, showers_sum_mm=0.0)
+        risk = compute_risk(_location(), forecast)
+        hail = next(h for h in risk.hazards if h.hazard == "hail")
+        self.assertEqual(hail.alert_level, "green")
+
+    def test_hail_unassessed_when_fields_missing(self):
+        forecast = _forecast(cape_max_jkg=None, freezing_level_min_m=None, showers_sum_mm=None)
+        risk = compute_risk(_location(), forecast)
+        hail = next(h for h in risk.hazards if h.hazard == "hail")
+        self.assertEqual(hail.alert_level, "green")
+        self.assertEqual(hail.risk_score, 0.0)
+        self.assertIn("Thiếu dữ liệu", hail.detail)
+
+    def test_landslide_red_when_saturated_and_heavy_rain(self):
+        forecast = _forecast(rain_3d_mm=400.0, soil_moisture_9_to_27cm=0.4)
+        risk = compute_risk(_location(terrain="nui_cao"), forecast)
+        landslide = next(h for h in risk.hazards if h.hazard == "landslide")
+        self.assertEqual(landslide.alert_level, "red")
+
+    def test_landslide_terrain_multiplier_can_escalate(self):
+        # Mưa/độ ẩm ở biên "yellow" -> địa hình núi cao (hệ số x1.4) đủ đẩy sang "orange".
+        forecast = _forecast(rain_3d_mm=100.0, soil_moisture_9_to_27cm=0.1)
+        flat = compute_risk(_location(terrain="thung_lung"), forecast)
+        mountain = compute_risk(_location(terrain="nui_cao"), forecast)
+        flat_landslide = next(h for h in flat.hazards if h.hazard == "landslide")
+        mountain_landslide = next(h for h in mountain.hazards if h.hazard == "landslide")
+        self.assertEqual(flat_landslide.alert_level, "yellow")
+        self.assertGreater(mountain_landslide.risk_score, flat_landslide.risk_score)
+
+    def test_landslide_unassessed_when_fields_missing(self):
+        forecast = _forecast(rain_3d_mm=None, soil_moisture_9_to_27cm=None)
+        risk = compute_risk(_location(), forecast)
+        landslide = next(h for h in risk.hazards if h.hazard == "landslide")
+        self.assertEqual(landslide.alert_level, "green")
+        self.assertEqual(landslide.risk_score, 0.0)
+        self.assertIn("Thiếu dữ liệu", landslide.detail)
 
     def test_heavy_rain_red_for_extreme_rain(self):
         risk = compute_risk(_location(), _forecast(precipitation_mm=500.0))
@@ -168,7 +215,7 @@ class TestComputeRisk(unittest.TestCase):
             temp_min_c=0.0, temp_max_c=0.0, precipitation_mm=0.0, humidity_pct=100.0, dew_point_c=0.0
         )
         risk = compute_risk(loc, forecast)
-        self.assertEqual(len(risk.hazards), 3)
+        self.assertEqual(len(risk.hazards), 4)
 
 
 if __name__ == "__main__":

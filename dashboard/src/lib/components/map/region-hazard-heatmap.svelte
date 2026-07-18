@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { clsx } from '$lib/clsx';
 	import { ALERT_HEX, ALERT_LABEL } from '$lib/alert-ui';
-	import { DIENBIEN_HAZARD_LABEL } from '$lib/dienbien-heatmap';
+	import { DIENBIEN_HAZARD_LABEL, DIENBIEN_HAZARDS } from '$lib/dienbien-heatmap';
 	import type { DienBienForecastEntry, DienBienHazard } from '$lib/types';
 
 	interface Props {
@@ -9,8 +9,6 @@
 		entry: DienBienForecastEntry;
 	}
 	let { entry }: Props = $props();
-
-	const HAZARDS: DienBienHazard[] = ['cold_damage', 'heavy_rain_flood', 'fog'];
 
 	interface HoveredCell {
 		hazard: DienBienHazard;
@@ -54,7 +52,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each HAZARDS as hazard (hazard)}
+				{#each DIENBIEN_HAZARDS as hazard (hazard)}
 					<tr>
 						<th scope="row" class="pr-2 text-left align-middle font-medium text-gray-700">
 							{DIENBIEN_HAZARD_LABEL[hazard]}
@@ -78,7 +76,7 @@
 								></button>
 								{#if isHovered(hazard, dayIndex)}
 									<div
-										class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 w-56 -translate-x-1/2 rounded-lg bg-[rgba(17,24,39,0.95)] px-3 py-2 text-left text-[11px] text-white shadow-xl"
+										class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 w-56 -translate-x-1/2 rounded-lg bg-slate-900/95 px-3 py-2 text-left text-[11px] text-white shadow-xl"
 									>
 										<strong class="block text-white">
 											{DIENBIEN_HAZARD_LABEL[hazard]} — {formatDay(day.date)}

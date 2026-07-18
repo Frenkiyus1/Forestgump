@@ -17,10 +17,14 @@ import {
 } from './dienbien-terrain-zones';
 
 export const DIENBIEN_HAZARD_LABEL: Record<DienBienHazard, string> = {
-	cold_damage: 'Rét đậm/rét hại',
+	hail: 'Mưa đá',
+	landslide: 'Sạt lở đất',
 	heavy_rain_flood: 'Mưa lớn/lũ quét',
 	fog: 'Sương mù'
 };
+
+/** Thứ tự hiển thị chuẩn cho 4 hiểm hoạ — dùng chung ở mọi nơi liệt kê đủ 4 loại. */
+export const DIENBIEN_HAZARDS: DienBienHazard[] = ['heavy_rain_flood', 'hail', 'landslide', 'fog'];
 
 // Thứ tự nguy hiểm tăng dần — khớp DIENBIEN_ALERT_SEVERITY ở backend/src/api.ts.
 export const ALERT_SEVERITY: Record<AlertLevel, number> = {
@@ -73,7 +77,7 @@ function weatherOf(day: DienBienForecastDay | undefined): RegionHeatWeather | nu
 	};
 }
 
-/** Hazard mặc định = mức cảnh báo cao nhất đang active (ngày đầu tiên) trong 3 anchor; toàn xanh -> rét đậm/rét hại. */
+/** Hazard mặc định = mức cảnh báo cao nhất đang active (ngày đầu tiên) trong 3 anchor; toàn xanh -> mưa lớn/lũ quét. */
 export function pickDefaultHazard(entries: DienBienForecastEntry[]): DienBienHazard {
 	let best: { hazard: DienBienHazard; severity: number } | null = null;
 	for (const entry of entries) {
@@ -86,7 +90,7 @@ export function pickDefaultHazard(entries: DienBienForecastEntry[]): DienBienHaz
 			}
 		}
 	}
-	return best && best.severity > 0 ? best.hazard : 'cold_damage';
+	return best && best.severity > 0 ? best.hazard : 'heavy_rain_flood';
 }
 
 /** Danh sách ngày (YYYY-MM-DD) dùng cho tab chọn ngày — lấy từ anchor có nhiều ngày dữ liệu nhất. */
