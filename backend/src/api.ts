@@ -13,9 +13,20 @@ import {
 } from './db.js';
 import { mockLatest, mockHistory, mockAlerts, mockDetail } from './mock.js';
 import { classifyAlert, trendOf, type AlertLevel } from './alert.js';
-import { stationQuerySchema, historyQuerySchema, chatBodySchema } from './schemas.js';
+import {
+  stationQuerySchema,
+  historyQuerySchema,
+  chatBodySchema,
+  dienbienForecastQuerySchema,
+  bulletinsQuerySchema,
+  type HazardRisk,
+} from './schemas.js';
 import { askChat, ChatUnavailableError } from './chat.js';
-import { fetchAllLocationsForecast } from './weather-ingest.js';
+import { fetchAllLocationsForecast, fetchLocationForecast } from './weather-ingest.js';
+import { DIEN_BIEN_LOCATIONS, findLocationByCode, type DienBienLocation } from './config/locations.js';
+import { assessRisk } from './ai-risk-client.js';
+import { fetchNchmfReference, type NchmfReference } from './nchmf-reference.js';
+import { checkSatelliteHealth, forwardSatellitePredict, SatelliteEngineUnavailableError } from './satellite-client.js';
 
 /**
  * Mã trạm DUY NHẤT gắn phần cứng thật (ESP32). Trạm này lấy dữ liệu từ DB;
@@ -260,6 +271,259 @@ app.get('/api/weather-raw', async (_req: Request, res: Response) => {
   }
 });
 
+interface DienBienForecastDay {
+  date: string;
+  tempMinC: number;
+  tempMaxC: number;
+  precipitationMm: number;
+  hazards: HazardRisk[];
+  bulletin: string;
+}
+
+interface DienBienForecastEntry {
+  location: { code: string; name: string; terrain: DienBienLocation['terrain']; elevationM: number };
+  source: 'open-meteo' | 'openweathermap';
+  fetchedAt: string;
+  days: DienBienForecastDay[];
+  aiEngineError?: string;
+}
+
+/** Lọc theo `?location=`; không truyền -> cả 3 địa điểm; mã không khớp -> null (caller trả 404). */
+function resolveDienBienLocations(code?: string): DienBienLocation[] | null {
+  if (!code) return DIEN_BIEN_LOCATIONS;
+  const found = findLocationByCode(code);
+  return found ? [found] : null;
+}
+
+/**
+ * Lấy dự báo thời tiết + đánh giá rủi ro (rét đậm/rét hại, mưa lớn/lũ quét,
+ * sương mù) + bản tin cảnh báo cho các địa điểm được chỉ định — gộp thành
+ * MỘT payload duy nhất cho dashboard (tránh phải gọi 2 API rồi tự join).
+ * Dùng chung cho GET /api/dienbien-forecast và GET /api/bulletins.
+ *
+ * Lỗi khi gọi AI Engine cho 1 địa điểm KHÔNG làm hỏng cả response — địa điểm
+ * đó trả về với days: [] và aiEngineError set, log lỗi ra console (giữ style
+ * try/catch từng phần đã dùng ở /api/stations).
+ */
+async function buildDienBienForecast(locations: DienBienLocation[]): Promise<DienBienForecastEntry[]> {
+  const allWeather = await fetchAllLocationsForecast();
+  const weatherByCode = new Map(allWeather.map((w) => [w.locationCode, w]));
+
+  return Promise.all(
+    locations.map(async (location) => {
+      const entry: DienBienForecastEntry = {
+        location: {
+          code: location.code,
+          name: location.name,
+          terrain: location.terrain,
+          elevationM: location.elevationM,
+        },
+        source: 'open-meteo',
+        fetchedAt: new Date().toISOString(),
+        days: [],
+      };
+
+      const weather = weatherByCode.get(location.code);
+      if (!weather) {
+        console.error(`[API] Không có dữ liệu thời tiết cho địa điểm "${location.code}"`);
+        return { ...entry, aiEngineError: 'Không có dữ liệu thời tiết cho địa điểm này' };
+      }
+      entry.source = weather.source;
+      entry.fetchedAt = weather.fetchedAt;
+
+      try {
+        const assessed = await assessRisk(location, weather.daily);
+        const dailyByDate = new Map(weather.daily.map((d) => [d.date, d] as const));
+        entry.days = assessed.days.map((dayAssessment) => {
+          const raw = dailyByDate.get(dayAssessment.risk.date);
+          if (!raw) {
+            throw new Error(
+              `AI Engine trả về ngày "${dayAssessment.risk.date}" không khớp dữ liệu thời tiết đã gửi`
+            );
+          }
+          return {
+            date: dayAssessment.risk.date,
+            tempMinC: raw.tempMinC,
+            tempMaxC: raw.tempMaxC,
+            precipitationMm: raw.precipitationMm,
+            hazards: dayAssessment.risk.hazards,
+            bulletin: dayAssessment.bulletin,
+          };
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[AI] /assess-risk failed for "${location.code}":`, message);
+        entry.aiEngineError = message;
+      }
+
+      return entry;
+    })
+  );
+}
+
+// GET /api/dienbien-forecast?location=<code> - dự báo + đánh giá rủi ro (rét
+// đậm/rét hại, mưa lớn/lũ quét, sương mù) + bản tin cảnh báo cho 3 địa điểm
+// demo Điện Biên, gộp thời tiết thô + risk + bulletin làm MỘT payload duy
+// nhất (tránh dashboard phải gọi 2 API rồi tự join). Không có `location` ->
+// trả cả 3 địa điểm; có -> lọc theo mã, 404 nếu không khớp.
+app.get('/api/dienbien-forecast', async (req: Request, res: Response) => {
+  const parsed = dienbienForecastQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid query' });
+  }
+
+  const locations = resolveDienBienLocations(parsed.data.location);
+  if (locations === null) {
+    return res.status(404).json({ error: `Location "${parsed.data.location}" not found` });
+  }
+
+  try {
+    const result = await buildDienBienForecast(locations);
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API] /api/dienbien-forecast failed:', message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Thứ tự nguy hiểm giảm dần — dùng để sắp xếp /api/bulletins (đỏ trước tiên).
+const DIENBIEN_ALERT_SEVERITY: Record<'green' | 'yellow' | 'orange' | 'red', number> = {
+  red: 3,
+  orange: 2,
+  yellow: 1,
+  green: 0,
+};
+
+// GET /api/bulletins?location=<code>&activeOnly=true - danh sách bản tin đã
+// "làm phẳng" (1 dòng / hiểm hoạ / ngày), dùng cho kênh cảnh báo SMS/Zalo/loa
+// sau này. Tái dùng buildDienBienForecast(). activeOnly mặc định true: chỉ
+// trả các dòng KHÔNG phải 'green' ("cảnh báo đang hoạt động"); false thì trả
+// hết. Sắp xếp: alertLevel nguy hiểm nhất trước, rồi theo ngày tăng dần.
+app.get('/api/bulletins', async (req: Request, res: Response) => {
+  const parsed = bulletinsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid query' });
+  }
+
+  const locations = resolveDienBienLocations(parsed.data.location);
+  if (locations === null) {
+    return res.status(404).json({ error: `Location "${parsed.data.location}" not found` });
+  }
+  const activeOnly = parsed.data.activeOnly !== 'false';
+
+  try {
+    const forecast = await buildDienBienForecast(locations);
+    const flattened = forecast.flatMap((entry) =>
+      entry.days.flatMap((day) =>
+        day.hazards
+          .filter((h) => !activeOnly || h.alert_level !== 'green')
+          .map((h) => ({
+            locationCode: entry.location.code,
+            locationName: entry.location.name,
+            date: day.date,
+            hazard: h.hazard,
+            alertLevel: h.alert_level,
+            bulletin: day.bulletin,
+          }))
+      )
+    );
+
+    flattened.sort((a, b) => {
+      const severityDiff = DIENBIEN_ALERT_SEVERITY[b.alertLevel] - DIENBIEN_ALERT_SEVERITY[a.alertLevel];
+      if (severityDiff !== 0) return severityDiff;
+      return Date.parse(a.date) - Date.parse(b.date);
+    });
+
+    res.json(flattened);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API] /api/bulletins failed:', message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/** Duy nhất địa điểm NCHMF có trang dự báo (cấp tỉnh lỵ) — xem nchmf-reference.ts. */
+const NCHMF_LOCATION_CODE = 'dbp';
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+interface DienBienForecastValidationDay {
+  date: string;
+  openMeteo: { tempMinC: number; tempMaxC: number };
+  nchmf: { tempMinC: number; tempMaxC: number };
+  deltaMaxC: number;
+  deltaMinC: number;
+}
+
+/** Gộp dự báo NCHMF (hôm nay + 10 ngày tới) thành 1 map tra theo ngày YYYY-MM-DD. */
+function nchmfByDate(nchmf: NchmfReference): Map<string, { tempMinC: number; tempMaxC: number }> {
+  const map = new Map<string, { tempMinC: number; tempMaxC: number }>();
+  map.set(nchmf.today.date, { tempMinC: nchmf.today.tempMinC, tempMaxC: nchmf.today.tempMaxC });
+  for (const day of nchmf.tenDayForecast) {
+    map.set(day.date, { tempMinC: day.tempMinC, tempMaxC: day.tempMaxC });
+  }
+  return map;
+}
+
+// GET /api/dienbien-forecast-validation - đối chiếu dự báo Open-Meteo với dự
+// báo chính thức NCHMF (trang Mường Thanh) cho địa điểm 'dbp' — lớp VALIDATION
+// (so sánh nhiệt độ min/max từng ngày), KHÔNG thay thế dữ liệu Open-Meteo dùng
+// ở nơi khác. NCHMF chỉ có trang cấp tỉnh lỵ nên endpoint này CHỈ áp dụng cho
+// 'dbp' (xem giới hạn trong nchmf-reference.ts). Nếu NCHMF lỗi/timeout/đổi cấu
+// trúc trang: vẫn trả 200 kèm nchmfAvailable=false thay vì làm hỏng cả
+// response — lớp đối chiếu là phụ, không phải nguồn dữ liệu chính.
+app.get('/api/dienbien-forecast-validation', async (_req: Request, res: Response) => {
+  try {
+    const location = findLocationByCode(NCHMF_LOCATION_CODE);
+    if (!location) {
+      throw new Error(`Location "${NCHMF_LOCATION_CODE}" không có trong DIEN_BIEN_LOCATIONS`);
+    }
+    const openMeteo = await fetchLocationForecast(location);
+
+    let nchmf: NchmfReference | undefined;
+    try {
+      nchmf = await fetchNchmfReference();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[API] /api/dienbien-forecast-validation: NCHMF không khả dụng:', message);
+    }
+
+    if (!nchmf) {
+      res.json({ locationCode: NCHMF_LOCATION_CODE, nchmfAvailable: false, days: [] });
+      return;
+    }
+
+    const refByDate = nchmfByDate(nchmf);
+    const days: DienBienForecastValidationDay[] = openMeteo.daily.flatMap((d) => {
+      const ref = refByDate.get(d.date);
+      if (!ref) return [];
+      return [
+        {
+          date: d.date,
+          openMeteo: { tempMinC: d.tempMinC, tempMaxC: d.tempMaxC },
+          nchmf: ref,
+          deltaMaxC: round1(d.tempMaxC - ref.tempMaxC),
+          deltaMinC: round1(d.tempMinC - ref.tempMinC),
+        },
+      ];
+    });
+
+    res.json({
+      locationCode: NCHMF_LOCATION_CODE,
+      nchmfAvailable: true,
+      nchmfUpdatedAt: nchmf.currentUpdatedAt,
+      days,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API] /api/dienbien-forecast-validation failed:', message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/webhook/stringee - answer_url cho Stringee Call API, trả về SCCO đọc cảnh báo.
 app.get('/api/webhook/stringee', (_req: Request, res: Response) => {
   res.status(200).json([
@@ -291,6 +555,46 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// GET /api/satellite/health - trạng thái Satellite Engine (module ảnh vệ tinh)
+app.get('/api/satellite/health', async (_req: Request, res: Response) => {
+  try {
+    const health = await checkSatelliteHealth();
+    res.json(health);
+  } catch (err) {
+    if (err instanceof SatelliteEngineUnavailableError) {
+      return res.status(503).json({ error: err.message });
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API] /api/satellite/health failed:', message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/satellite/predict - nhận GeoTIFF (multipart/form-data, field "file"),
+// forward nguyên trạng sang Satellite Engine POST /predict, trả job_id/mask_path.
+app.post(
+  '/api/satellite/predict',
+  express.raw({ type: 'multipart/form-data', limit: '200mb' }),
+  async (req: Request, res: Response) => {
+    const contentType = req.headers['content-type'];
+    if (!contentType || !Buffer.isBuffer(req.body) || req.body.length === 0) {
+      return res.status(400).json({ error: 'Missing multipart/form-data body (field "file")' });
+    }
+
+    try {
+      const result = await forwardSatellitePredict(req.body, contentType);
+      res.json(result);
+    } catch (err) {
+      if (err instanceof SatelliteEngineUnavailableError) {
+        return res.status(503).json({ error: err.message });
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[API] /api/satellite/predict failed:', message);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+);
 
 // POST /api/users — lưu profile người dùng từ onboarding
 app.post('/api/users', async (req: Request, res: Response) => {
