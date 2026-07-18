@@ -15,20 +15,33 @@ from risk_engine import ForecastInput, Terrain
 
 # Thứ tự cột PHẢI cố định — model XGBoost đã train gắn chặt với thứ tự này.
 # Đổi/thêm cột thì PHẢI train lại model (chạy lại train_xgb.py).
+# Các cột tổng hợp từ hourly Open-Meteo (visibility_min_m, dew_spread_min_c,
+# humidity_max_pct, rain_1h_mm, wind_gusts_kmh, soil_moisture_0_1) = NaN khi
+# nguồn dự phòng OpenWeatherMap không cung cấp — XGBoost xử lý missing tự nhiên.
 FEATURE_NAMES: list[str] = [
     "temp_min_c",
     "temp_max_c",
     "avg_temp_c",
     "precipitation_mm",
-    "rain_12h_mm",  # NaN nếu pipeline không cung cấp — XGBoost xử lý missing tự nhiên
+    "rain_12h_mm",
+    "rain_1h_mm",
     "humidity_pct",
+    "humidity_max_pct",
     "dew_point_c",
-    "dew_spread_c",  # chênh nhiệt TB - điểm sương, tín hiệu chính của sương mù
+    "dew_spread_c",  # chênh nhiệt TB - điểm sương (trung bình ngày)
+    "dew_spread_min_c",  # chênh nhỏ nhất trong ngày (đêm/rạng sáng) — tín hiệu sương mù mạnh nhất
+    "visibility_min_m",  # tầm nhìn thấp nhất trong ngày — tín hiệu trực tiếp của sương mù
     "wind_speed_kmh",
+    "wind_gusts_kmh",
+    "soil_moisture_0_1",
     "terrain_thung_lung",
     "terrain_nui_cao",
     "terrain_ven_suoi",
 ]
+
+
+def _opt(value: float | None) -> float:
+    return value if value is not None else math.nan
 
 
 def build_features(forecast: ForecastInput, terrain: Terrain) -> list[float]:
@@ -49,11 +62,17 @@ def build_features(forecast: ForecastInput, terrain: Terrain) -> list[float]:
         forecast.temp_max_c,
         avg_temp_c,
         forecast.precipitation_mm,
-        forecast.rain_12h_mm if forecast.rain_12h_mm is not None else math.nan,
+        _opt(forecast.rain_12h_mm),
+        _opt(forecast.rain_1h_mm),
         forecast.humidity_pct,
+        _opt(forecast.humidity_max_pct),
         forecast.dew_point_c,
         avg_temp_c - forecast.dew_point_c,
+        _opt(forecast.dew_spread_min_c),
+        _opt(forecast.visibility_min_m),
         forecast.wind_speed_kmh,
+        _opt(forecast.wind_gusts_kmh),
+        _opt(forecast.soil_moisture_0_1),
         1.0 if terrain == "thung_lung" else 0.0,
         1.0 if terrain == "nui_cao" else 0.0,
         1.0 if terrain == "ven_suoi" else 0.0,
