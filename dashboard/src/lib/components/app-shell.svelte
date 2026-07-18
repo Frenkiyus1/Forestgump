@@ -15,7 +15,8 @@
 		lang = 'vi',
 		onLangChange,
 		compact = false,
-		noHeader = false
+		noHeader = false,
+		hideChat = false
 	}: {
 		children: Snippet;
 		lang?: Bulletin['lang'];
@@ -25,6 +26,8 @@
 		compact?: boolean;
 		/** Hides the sticky top bar — used by pages that want full-bleed content. */
 		noHeader?: boolean;
+		/** Hides the chat widget on pages where it's not needed. */
+		hideChat?: boolean;
 	} = $props();
 
 	const path = $derived(page.url.pathname);
@@ -249,9 +252,9 @@
 			class={clsx(
 				'relative z-10 mx-auto max-w-6xl',
 				compact
-					? 'flex flex-col px-6 pt-1 pb-4 lg:h-[calc(100vh-64px)] lg:overflow-y-auto'
+					? 'flex flex-col px-6 pt-1 pb-0 lg:h-[calc(100vh-64px)] lg:overflow-y-auto'
 					: noHeader
-						? 'flex flex-col px-6 pt-1 pb-4 lg:h-screen lg:overflow-y-auto'
+						? 'flex flex-col px-6 pt-1 pb-0 lg:h-screen lg:overflow-y-auto'
 						: 'px-6 pt-10 pb-20'
 			)}
 		>
@@ -260,4 +263,6 @@
 	</div>
 </div>
 
-<ChatWidget />
+{#if !hideChat}
+	<ChatWidget />
+{/if}
