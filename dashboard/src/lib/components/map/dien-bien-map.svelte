@@ -254,16 +254,16 @@
 		{/if}
 	</div>
 
-	<aside class="flex min-h-0 flex-col gap-2">
+	<aside class="flex min-h-0 flex-col gap-1">
 		<input
 			type="text"
 			placeholder="Tìm xã/phường…"
 			autocomplete="off"
 			bind:value={searchQuery}
-			class="w-full shrink-0 rounded-lg border border-[#d0d7e2] px-2 py-1.5 text-xs"
+			class="w-full shrink-0 rounded border border-[#d0d7e2] px-1.5 py-1 text-[11px]"
 		/>
 
-		<div class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto">
+		<div class="flex min-h-0 flex-1 flex-col gap-px overflow-auto">
 			{#each filteredRegions as region (region.id)}
 				{@const regionHeat = heat?.get(region.id) ?? null}
 				<button
@@ -286,7 +286,7 @@
 						hidePin();
 					}}
 					class={clsx(
-						'flex items-center gap-1.5 rounded-lg border-0 px-2 py-1 text-left text-xs transition',
+						'flex items-center gap-1 rounded border-0 px-1.5 py-0.5 text-left text-[11px] transition',
 						selectedId === region.id
 							? 'bg-[#fef3c7] text-[#92400e]'
 							: 'bg-[#f7f9fc] hover:bg-[#fef3c7] hover:text-[#92400e]'
@@ -294,7 +294,7 @@
 				>
 					{#if regionHeat}
 						<span
-							class="h-1.5 w-1.5 shrink-0 rounded-full"
+							class="h-1 w-1 shrink-0 rounded-full"
 							style="background-color: {ALERT_HEX[regionHeat.alertLevel]}"
 							aria-hidden="true"
 						></span>
@@ -304,8 +304,8 @@
 			{/each}
 		</div>
 
-		<p class="shrink-0 text-[10px] text-[#667085]">
-			Bấm vào vùng trên bản đồ hoặc trong danh sách.
+		<p class="shrink-0 text-[9px] text-[#667085]">
+			Bấm vào vùng trên bản đồ hoặc danh sách.
 		</p>
 	</aside>
 </div>
