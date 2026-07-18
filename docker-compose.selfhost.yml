@@ -20,6 +20,12 @@ services:
     container_name: forestgump-ai
     restart: unless-stopped
     # Không publish cổng — chỉ backend gọi nội bộ.
+    # Mount model đã train từ host (python train_terrain.py / train_xgb.py /
+    # train_flood.py trong ai_engine/) để các endpoint ML trả mode="model".
+    # Chưa train (thư mục trống) thì service tự fallback
+    # (csv_baseline / fallback_rule_engine / mock), không lỗi.
+    volumes:
+      - ./ai_engine/models:/app/models:ro
 
   backend:
     build: ./backend
