@@ -113,7 +113,15 @@ export async function fetchLocationForecast(location: DienBienLocation): Promise
  * Lấy dự báo cho cả 3 địa điểm demo (song song) — dùng cho
  * GET /api/weather-raw và làm đầu vào cho buildDienBienForecast(). Pipeline
  * MVP không có bước lưu DB (tính on-the-fly mỗi request, xem docs/architecture.md).
+ *
+ * Lỗi (Open-Meteo + fallback OpenWeatherMap đều lỗi) cho 1 địa điểm KHÔNG làm
+ * hỏng cả response — địa điểm đó bị bỏ qua (đã log lỗi trong
+ * fetchLocationForecast), các địa điểm còn lại vẫn trả về bình thường. Khớp
+ * nguyên tắc cách ly lỗi đã áp dụng cho tầng AI Engine (xem buildDienBienForecast).
  */
 export async function fetchAllLocationsForecast(): Promise<LocationWeather[]> {
-  return Promise.all(DIEN_BIEN_LOCATIONS.map((location) => fetchLocationForecast(location)));
+  const results = await Promise.allSettled(
+    DIEN_BIEN_LOCATIONS.map((location) => fetchLocationForecast(location))
+  );
+  return results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
 }
