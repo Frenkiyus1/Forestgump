@@ -64,8 +64,9 @@
 		</div>
 	{/if}
 
-	<div class="mb-3 flex flex-wrap items-center gap-2">
-		{#each HAZARDS as hazard (hazard)}
+	<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+		<div class="flex flex-wrap items-center gap-2">
+			{#each HAZARDS as hazard (hazard)}
 				<button
 					type="button"
 					onclick={() => (selectedHazard = hazard)}
@@ -80,10 +81,11 @@
 					{DIENBIEN_HAZARD_LABEL[hazard]}
 				</button>
 			{/each}
+		</div>
 
-			{#if days.length}
+		{#if days.length}
+			<div class="flex flex-wrap items-center gap-2">
 				{#each days as day, i (day)}
-
 					<button
 						type="button"
 						onclick={() => (selectedDayIndex = i)}
@@ -98,7 +100,8 @@
 						{formatDay(day)}
 					</button>
 				{/each}
-			{/if}
+			</div>
+		{/if}
 	</div>
 
 	<DienBienMap
