@@ -117,7 +117,7 @@
 	}
 </script>
 
-<div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_minmax(0,26rem)]" style="transform: translateY(-30px);">
+<div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_minmax(0,26rem)]">
 	<div class={clsx(CARD, 'relative w-full overflow-hidden rounded-2xl p-0')} style="min-height: 60vh;">
 		<div class="relative h-full w-full touch-none select-none">
 			<div
