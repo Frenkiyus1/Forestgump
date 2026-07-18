@@ -73,49 +73,15 @@
 		</div>
 	{/if}
 
-	<div class="mb-6">
-		<nav class="mb-3 flex items-center gap-1.5 text-sm text-gray-400">
-			<button
-				type="button"
-				onclick={backToOverview}
-				class={clsx(
-					'transition hover:text-gray-600',
-					!selectedRegion && 'font-semibold text-gray-900'
-				)}
-			>
-				Điện Biên
-			</button>
-			{#if selectedRegion}
-				<span aria-hidden="true">›</span>
-				<span class="font-semibold text-gray-900">{selectedRegion.name}</span>
-			{/if}
-		</nav>
-
-		<h1
-			class="text-4xl leading-tight font-semibold tracking-tight"
-			style="font-family: 'Lora', serif;"
-		>
-			{selectedRegion ? selectedRegion.name : 'Điện Biên'}
-		</h1>
-		<p class="mt-2 text-[15px] text-gray-500">
-			{#if !selectedRegion}
-				Chọn một khu vực tại Điện Biên để xem chi tiết, hoặc đổi hiểm hoạ/ngày để xem heatmap cảnh
-				báo.
-			{:else}
-				Khu vực {selectedRegion.name} — mã vùng {selectedRegion.id}.
-			{/if}
-		</p>
-	</div>
-
-	<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-		<div class="flex flex-wrap gap-2" role="group" aria-label="Chọn loại hiểm hoạ">
+	<div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+		<div class="flex flex-wrap gap-1.5" role="group" aria-label="Chọn loại hiểm hoạ">
 			{#each HAZARDS as hazard (hazard)}
 				<button
 					type="button"
 					onclick={() => (selectedHazard = hazard)}
 					aria-pressed={selectedHazard === hazard}
 					class={clsx(
-						'rounded-full px-4 py-2 text-sm font-medium transition',
+						'rounded-full px-3 py-1.5 text-sm font-medium transition',
 						selectedHazard === hazard
 							? 'bg-gray-900 text-white'
 							: 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -193,10 +159,4 @@
 		</div>
 	{/if}
 
-	<p class="mt-4 text-xs text-gray-400">
-		Chỉ 3 xã có viền đậm (Mường Nhé, Tủa Chùa, Điện Biên Phủ) là dữ liệu đo thật từ trạm quan trắc.
-		42 xã còn lại được tô màu ước tính theo vùng địa hình từ 3 điểm quan trắc này, không phải đo tại
-		từng xã — xem chi tiết cách suy ra trong
-		<code class="rounded bg-gray-100 px-1 py-0.5">docs/dienbien-phase2-terrain.md</code>.
-	</p>
 </AppShell>
