@@ -79,3 +79,40 @@ export function clearSession(): void {
 	if (!browser) return;
 	localStorage.removeItem(SESSION_KEY);
 }
+
+const ONBOARDING_KEY = 'forestgump_onboarding_done';
+const PROFILE_KEY = 'forestgump_user_profile';
+
+export interface UserProfile {
+	/** id trong `LOCATIONS` (lib/locations.ts) */
+	locationId: string;
+	/** các loại hình nguy hiểm người dùng muốn nhận cảnh báo, vd. 'lu-quet' | 'bang-gia' | 'suong-mu' */
+	hazards: string[];
+	channel: 'sms' | 'zalo' | 'push';
+}
+
+export function isOnboardingDone(): boolean {
+	if (!browser) return false;
+	return localStorage.getItem(ONBOARDING_KEY) === '1';
+}
+
+export function markOnboardingDone(): void {
+	if (!browser) return;
+	localStorage.setItem(ONBOARDING_KEY, '1');
+}
+
+export function saveUserProfile(profile: UserProfile): void {
+	if (!browser) return;
+	localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+}
+
+export function getUserProfile(): UserProfile | null {
+	if (!browser) return null;
+	const raw = localStorage.getItem(PROFILE_KEY);
+	if (!raw) return null;
+	try {
+		return JSON.parse(raw) as UserProfile;
+	} catch {
+		return null;
+	}
+}

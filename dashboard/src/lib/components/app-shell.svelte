@@ -1,11 +1,14 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { clsx } from '$lib/clsx';
 	import logo from '$lib/assets/logo.png';
+	import { getSession, clearSession } from '$lib/auth';
 	import LanguageToggle from './language-toggle.svelte';
 	import VersionSwitcher from './version-switcher.svelte';
+	import ChatWidget from './chat-widget.svelte';
 	import type { Bulletin } from '$lib/types';
 
 	let {
@@ -20,6 +23,22 @@
 
 	const path = $derived(page.url.pathname);
 	let mobileOpen = $state(false);
+
+	// Re-read on every navigation — localStorage isn't reactive on its own.
+	const session = $derived.by(() => {
+		void path;
+		return getSession();
+	});
+	const isGuest = $derived(!session || session.email === 'Guest');
+	const accountName = $derived(isGuest ? 'Khách' : 'Admin');
+	const accountEmail = $derived(isGuest ? 'Chế độ khách' : (session?.email ?? ''));
+	const accountInitials = $derived(accountName.slice(0, 2).toUpperCase());
+
+	function logout() {
+		clearSession();
+		mobileOpen = false;
+		goto(resolve('/login'));
+	}
 
 	type NavIcon = 'overview' | 'locations' | 'map' | 'alerts';
 	type NavHref = '/' | '/locations' | '/map' | '/alerts';
@@ -126,11 +145,63 @@
 			</ul>
 		</nav>
 
-		<!-- attribution footer -->
+		<!-- account footer -->
 		<div class="border-t border-black/[0.04] p-4">
-			<p class="text-xs text-gray-400">Nguồn dữ liệu</p>
-			<p class="mt-0.5 text-sm font-medium text-gray-700">Đài KTTV khu vực Tây Bắc</p>
-			<p class="mt-2 text-[11px] text-gray-400">VAIC 2026 · Đội ALT F4</p>
+			<div class="flex items-center gap-3">
+				<span
+					class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-sm font-semibold text-accent"
+					>{accountInitials}</span
+				>
+				<div class="min-w-0 flex-1">
+					<p class="truncate text-sm font-medium">{accountName}</p>
+					<p class="truncate text-xs text-gray-400">{accountEmail}</p>
+				</div>
+				<button
+					type="button"
+					disabled
+					aria-label="Cài đặt (sắp ra mắt)"
+					title="Cài đặt (sắp ra mắt)"
+					class="grid h-9 w-9 shrink-0 cursor-not-allowed place-items-center rounded-lg text-gray-300"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						class="h-4 w-4"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						aria-hidden="true"
+					>
+						<path
+							d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+						<circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				</button>
+				<button
+					type="button"
+					onclick={logout}
+					aria-label="Đăng xuất"
+					title="Đăng xuất"
+					class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-gray-400 transition hover:bg-cream/70 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-accent"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						class="h-4 w-4"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						aria-hidden="true"
+					>
+						<path
+							d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+					</svg>
+				</button>
+			</div>
 		</div>
 	</aside>
 
@@ -172,3 +243,5 @@
 		</main>
 	</div>
 </div>
+
+<ChatWidget />
