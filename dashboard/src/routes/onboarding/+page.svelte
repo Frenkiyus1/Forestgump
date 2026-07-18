@@ -71,7 +71,11 @@
 				<div class="mt-3 flex flex-col gap-2">
 					{#each LOCATIONS as loc (loc.id)}
 						<label
-							class={clsx(cardBase, 'flex cursor-pointer items-center gap-3', locationId === loc.id ? cardActive : cardIdle)}
+							class={clsx(
+								cardBase,
+								'flex cursor-pointer items-center gap-3',
+								locationId === loc.id ? cardActive : cardIdle
+							)}
 						>
 							<input
 								type="radio"
@@ -95,7 +99,11 @@
 				<div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
 					{#each HAZARDS as h (h)}
 						<label
-							class={clsx(cardBase, 'flex cursor-pointer flex-col items-center gap-1.5 text-center', hazards.has(h) ? cardActive : cardIdle)}
+							class={clsx(
+								cardBase,
+								'flex cursor-pointer flex-col items-center gap-1.5 text-center',
+								hazards.has(h) ? cardActive : cardIdle
+							)}
 						>
 							<input
 								type="checkbox"
@@ -115,9 +123,20 @@
 				<div class="mt-3 flex flex-wrap gap-2">
 					{#each CHANNELS as c (c.id)}
 						<label
-							class={clsx('cursor-pointer rounded-full border px-4 py-1.5 text-sm transition', channel === c.id ? 'border-[#2a9d8f] bg-[#2a9d8f]/10 text-[#1e6f5c] font-medium' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}
+							class={clsx(
+								'cursor-pointer rounded-full border px-4 py-1.5 text-sm transition',
+								channel === c.id
+									? 'border-[#2a9d8f] bg-[#2a9d8f]/10 text-[#1e6f5c] font-medium'
+									: 'border-slate-200 text-slate-600 hover:bg-slate-50'
+							)}
 						>
-							<input type="radio" name="channel" value={c.id} bind:group={channel} class="sr-only" />
+							<input
+								type="radio"
+								name="channel"
+								value={c.id}
+								bind:group={channel}
+								class="sr-only"
+							/>
 							{c.label}
 						</label>
 					{/each}

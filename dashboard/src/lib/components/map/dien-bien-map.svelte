@@ -59,7 +59,26 @@
 			: null
 	);
 
+	const ZOOM_DURATION_MS = 500;
+	const ZOOM_SCALE = 2.5;
+	let zoomingRegionId = $state<number | null>(null);
+	let zoomStyle = $state<string>('');
+
 	function select(id: number) {
+		const region = regions.find((r) => r.id === id);
+		if (region && HAZARD_HEATMAP_ANCHOR_NAMES.has(region.name)) {
+			const [cx, cy] = region.centroid;
+			const cxPct = (cx / 926) * 100;
+			const cyPct = (cy / 1178) * 100;
+			zoomingRegionId = id;
+			selectedId = id;
+			zoomStyle = `transform: translate(calc(50% - ${cxPct * ZOOM_SCALE}%), calc(50% - ${cyPct * ZOOM_SCALE}%)) scale(${ZOOM_SCALE}); transform-origin: 0 0; transition: transform ${ZOOM_DURATION_MS}ms ease-in-out;`;
+			setTimeout(() => {
+				onSelect(id);
+				zoomingRegionId = null;
+			}, ZOOM_DURATION_MS);
+			return;
+		}
 		selectedId = id;
 		onSelect(id);
 	}
@@ -113,7 +132,7 @@
 
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_minmax(0,14rem)]">
 	<div class={clsx(CARD, 'relative overflow-hidden p-0')}>
-		<div class="relative">
+		<div class="relative" style={zoomingRegionId ? zoomStyle : ''}>
 			<img
 				src="/dienbien-map.png"
 				alt="Bản đồ Điện Biên"
