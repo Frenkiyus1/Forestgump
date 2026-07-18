@@ -124,6 +124,7 @@
 
 			{#if days.length}
 				{#each days as day, i (day)}
+
 					<button
 						type="button"
 						onclick={() => (selectedDayIndex = i)}
