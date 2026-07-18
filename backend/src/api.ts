@@ -276,6 +276,8 @@ interface DienBienForecastDay {
   tempMinC: number;
   tempMaxC: number;
   precipitationMm: number;
+  humidityPct: number;
+  windSpeedKmh: number;
   hazards: HazardRisk[];
   bulletin: string;
 }
@@ -346,6 +348,8 @@ async function buildDienBienForecast(locations: DienBienLocation[]): Promise<Die
             tempMinC: raw.tempMinC,
             tempMaxC: raw.tempMaxC,
             precipitationMm: raw.precipitationMm,
+            humidityPct: raw.humidityPct,
+            windSpeedKmh: raw.windSpeedKmh,
             hazards: dayAssessment.risk.hazards,
             bulletin: dayAssessment.bulletin,
           };
