@@ -1,4 +1,4 @@
-import type { Alert, Bulletin, DayForecast, Forecast } from './types';
+import type { Bulletin, DayForecast, Forecast } from './types';
 
 /** "2026-07-18" style date, offset from today by `days`. Keeps fixtures always "current". */
 function dateOffset(days: number): string {
@@ -26,48 +26,34 @@ const forecastDienBienPhu: Forecast = {
 	alert: null
 };
 
-// --- Mường Nhé — vùng cao dốc đứng, rủi ro chính: lũ quét. Cảnh báo VÀNG, còn ~30h. ---
-const alertMuongNhe: Alert = {
-	level: 'yellow',
-	type: 'lu-quet',
-	reason: 'Mưa dự báo 95mm/24h, đất đã bão hoà sau 2 ngày mưa liên tục ở thượng nguồn',
-	hoursAhead: 30
-};
-
+// --- Mường Nhé — vùng cao dốc đứng, rủi ro chính: lũ quét. Hiện KHÔNG có cảnh báo. ---
 const forecastMuongNhe: Forecast = {
 	locationId: 'muong-nhe',
 	locationName: 'Mường Nhé',
 	daily: week((i) => ({
 		tempMin: 21 + (i % 2),
 		tempMax: 30 + (i % 3),
-		rainSum: [15, 40, 95, 60, 20, 10, 5][i], // đỉnh mưa rơi vào ngày ứng với mốc cảnh báo 30h
+		rainSum: [15, 40, 95, 60, 20, 10, 5][i],
 		rainMax1h: [5, 18, 52, 30, 10, 4, 2][i],
 		visibilityMin: [4000, 3000, 1200, 2000, 4000, 4000, 4000][i],
 		humidityMax: 90 + (i % 5)
 	})),
-	alert: alertMuongNhe
+	alert: null
 };
 
-// --- Tủa Chùa — cao nguyên đá >1000m, rủi ro chính: băng giá. Cảnh báo ĐỎ, còn ~12h. ---
-const alertTuaChua: Alert = {
-	level: 'red',
-	type: 'bang-gia',
-	reason: 'Nhiệt độ giảm sâu còn 2°C đêm nay, sương muối dày đặc trên cao nguyên đá',
-	hoursAhead: 12
-};
-
+// --- Tủa Chùa — cao nguyên đá >1000m, rủi ro chính: băng giá. Hiện KHÔNG có cảnh báo. ---
 const forecastTuaChua: Forecast = {
 	locationId: 'tua-chua',
 	locationName: 'Tủa Chùa',
 	daily: week((i) => ({
-		tempMin: [8, 5, 2, 3, 6, 9, 10][i], // rét đậm rơi vào đêm ứng với mốc cảnh báo 12h
+		tempMin: [8, 5, 2, 3, 6, 9, 10][i],
 		tempMax: [16, 13, 10, 11, 14, 17, 18][i],
 		rainSum: [0, 0, 0, 1, 0, 0, 0][i],
 		rainMax1h: [0, 0, 0, 1, 0, 0, 0][i],
 		visibilityMin: [3000, 2000, 800, 1500, 3000, 3500, 4000][i],
 		humidityMax: 92 + (i % 4)
 	})),
-	alert: alertTuaChua
+	alert: null
 };
 
 export const MOCK_FORECASTS: Record<string, Forecast> = {
@@ -98,39 +84,35 @@ export const MOCK_BULLETINS: Record<string, Record<Bulletin['lang'], Bulletin>> 
 	},
 	'muong-nhe': {
 		vi: {
-			headline: 'Còn 30 giờ — nguy cơ lũ quét',
-			action:
-				'Di dời gia súc khỏi khe suối, chuyển đồ đạc lên nơi cao, tuyệt đối không đi qua ngầm tràn khi mưa lớn.',
+			headline: 'Không có cảnh báo — thời tiết ổn định',
+			action: 'Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
 			lang: 'vi'
 		},
 		thai: {
-			headline: '[Cần dịch tiếng Thái] Còn 30 giờ — nguy cơ lũ quét',
-			action:
-				'[Cần dịch tiếng Thái] Di dời gia súc khỏi khe suối, chuyển đồ đạc lên nơi cao, không đi qua ngầm tràn.',
+			headline: '[Cần dịch tiếng Thái] Không có cảnh báo — thời tiết ổn định',
+			action: '[Cần dịch tiếng Thái] Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
 			lang: 'thai'
 		},
 		hmong: {
-			headline: '[Cần dịch tiếng Hmông] Còn 30 giờ — nguy cơ lũ quét',
-			action:
-				'[Cần dịch tiếng Hmông] Di dời gia súc khỏi khe suối, chuyển đồ đạc lên nơi cao, không đi qua ngầm tràn.',
+			headline: '[Cần dịch tiếng Hmông] Không có cảnh báo — thời tiết ổn định',
+			action: '[Cần dịch tiếng Hmông] Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
 			lang: 'hmong'
 		}
 	},
 	'tua-chua': {
 		vi: {
-			headline: 'Còn 12 giờ — nguy cơ băng giá',
-			action:
-				'Đưa gia súc vào chuồng kín, đốt lửa sưởi ấm, che chắn cây trồng non, dự trữ đủ thức ăn cho gia súc qua đêm.',
+			headline: 'Không có cảnh báo — thời tiết ổn định',
+			action: 'Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
 			lang: 'vi'
 		},
 		thai: {
-			headline: '[Cần dịch tiếng Thái] Còn 12 giờ — nguy cơ băng giá',
-			action: '[Cần dịch tiếng Thái] Đưa gia súc vào chuồng kín, sưởi ấm, che chắn cây trồng non.',
+			headline: '[Cần dịch tiếng Thái] Không có cảnh báo — thời tiết ổn định',
+			action: '[Cần dịch tiếng Thái] Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
 			lang: 'thai'
 		},
 		hmong: {
-			headline: '[Cần dịch tiếng Hmông] Còn 12 giờ — nguy cơ băng giá',
-			action: '[Cần dịch tiếng Hmông] Đưa gia súc vào chuồng kín, sưởi ấm, che chắn cây trồng non.',
+			headline: '[Cần dịch tiếng Hmông] Không có cảnh báo — thời tiết ổn định',
+			action: '[Cần dịch tiếng Hmông] Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
 			lang: 'hmong'
 		}
 	}
