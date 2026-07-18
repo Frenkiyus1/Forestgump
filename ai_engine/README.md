@@ -15,9 +15,12 @@ quan monorepo).
 > liệu quan trắc thật để kiểm chứng độc lập. Phần dưới giải thích vì sao đây
 > là lựa chọn kiến trúc AI-native có chủ đích, không phải thiếu ML.
 
-**4 endpoint hiện có:** `GET /health`, `POST /assess-risk` (nguồn quyết định
+**7 endpoint hiện có:** `GET /health`, `POST /assess-risk` (nguồn quyết định
 chính), `POST /predict-flood-risk` (ML nhị phân, tham khảo), `POST
-/assess-risk-ml` (ML multi-hazard, shadow — mới nối, xem mục 6.5).
+/assess-risk-ml` (ML multi-hazard, shadow — xem mục 6.5), `GET
+/terrain-communes` + `POST /assess-terrain-risk` + `GET
+/assess-terrain-risk-live` (ML sạt lở/lũ quét theo 130 xã, train từ đặc
+trưng địa hình DEM thật + mưa live Open-Meteo — xem mục 7).
 
 ---
 
@@ -29,14 +32,15 @@ chính), `POST /predict-flood-risk` (ML nhị phân, tham khảo), `POST
 4. [Luồng xử lý 1 request](#4-luồng-xử-lý-1-request)
 5. [Nhánh ML #1 — Lũ quét nhị phân (đã nối vào service)](#5-nhánh-ml-1--lũ-quét-nhị-phân-đã-nối-vào-service)
 6. [Nhánh ML #2 — Multi-hazard multi-class (đã nối `/assess-risk-ml`, shadow)](#6-nhánh-ml-2--multi-hazard-multi-class-đã-nối-assess-risk-ml-shadow)
-7. [Hợp đồng API](#7-hợp-đồng-api)
-8. [Cài đặt & chạy](#8-cài-đặt--chạy)
-9. [Huấn luyện & đánh giá lại model](#9-huấn-luyện--đánh-giá-lại-model)
-10. [Testing](#10-testing)
-11. [Docker](#11-docker)
-12. [Giới hạn đã biết & nguyên tắc an toàn](#12-giới-hạn-đã-biết--nguyên-tắc-an-toàn)
-13. [Roadmap](#13-roadmap)
-14. [Cấu trúc thư mục](#14-cấu-trúc-thư-mục)
+7. [Nhánh ML #3 — Sạt lở + lũ quét theo 130 xã (DEM thật + mưa live)](#7-nhánh-ml-3--sạt-lở--lũ-quét-theo-130-xã-dem-thật--mưa-live)
+8. [Hợp đồng API](#8-hợp-đồng-api)
+9. [Cài đặt & chạy](#9-cài-đặt--chạy)
+10. [Huấn luyện & đánh giá lại model](#10-huấn-luyện--đánh-giá-lại-model)
+11. [Testing](#11-testing)
+12. [Docker](#12-docker)
+13. [Giới hạn đã biết & nguyên tắc an toàn](#13-giới-hạn-đã-biết--nguyên-tắc-an-toàn)
+14. [Roadmap](#14-roadmap)
+15. [Cấu trúc thư mục](#15-cấu-trúc-thư-mục)
 
 ---
 
@@ -386,7 +390,78 @@ liệu quan trắc thật, không phải chỉ cần code (xem mục 12).
 
 ---
 
-## 7. Hợp đồng API
+## 7. Nhánh ML #3 — Sạt lở + lũ quét theo 130 xã (DEM thật + mưa live)
+
+Nhánh ML mới nhất, khác biệt căn bản với nhánh #1/#2: **train trên bảng đặc
+trưng địa hình THẬT tính từ DEM** cho từng xã Điện Biên
+([`docs/dienbien_risk_theo_xa.csv`](../docs/dienbien_risk_theo_xa.csv), bản
+sao service tại `data/dienbien_risk_theo_xa.csv` — 130 xã × 15 cột), không
+phải dữ liệu tổng hợp. Dự đoán 2 hiểm hoạ mới: **sạt lở đất** (`satlo`) và
+**lũ quét theo xã** (`luquet`).
+
+### 7.1. Vector đặc trưng (9 chiều, `terrain_features.TERRAIN_FEATURE_NAMES`)
+
+| Nhóm | Feature | Nguồn |
+|---|---|---|
+| Địa hình (tĩnh) | `slope_mean_deg` — độ dốc trung bình | DEM (CSV) |
+| | `log_flow_accum` — log1p(tích tụ dòng chảy max) | DEM (CSV) |
+| | `twi_mean` — Topographic Wetness Index | DEM (CSV) |
+| | `curvature_std` — độ lệch chuẩn độ cong địa hình | DEM (CSV) |
+| | `elevation_m` — độ cao centroid | **Open-Meteo Elevation API** (cache `data/commune_elevation.json`) |
+| Mưa (động) | `rain_1h_mm`, `rain_24h_mm`, `rain_72h_mm` — mưa vừa qua | CSV lúc train; **Open-Meteo Forecast API** (`past_days=3`) lúc serve live |
+| | `rain_next_24h_mm` — dự báo mưa 24h tới | CSV lúc train; Open-Meteo lúc serve live |
+
+Nhãn: `risk_satlo`/`risk_luquet` (0-1, hồi quy `reg:squarederror`). Cấp cảnh
+báo 1-5 quy đổi bằng ngưỡng **0.2/0.4/0.6/0.8**
+(`terrain_features.risk_score_to_level` — khớp 100% cột `muc_canhbao_*`
+trong CSV, cùng tinh thần cấp độ rủi ro thiên tai QĐ 18/2021/QĐ-TTg).
+
+### 7.2. Live API — càng nhiều đặc trưng live càng tốt, nhưng tách bạch
+
+Endpoint `GET /assess-terrain-risk-live?commune=<tên xã>` gọi 2 API miễn
+phí, không cần key, ngay tại centroid xã (`live_features.py`):
+
+- **Open-Meteo Forecast API** — mưa thật 1h/24h/72h vừa qua + dự báo 24h
+  tới (**đưa thẳng vào model**, thay snapshot tĩnh trong CSV), kèm độ ẩm
+  đất 0-7cm (`soil_moisture_0_to_7cm`) và xác suất mưa lớn nhất 24h tới.
+- **Open-Meteo Flood API (GloFAS)** — lưu lượng sông hôm nay + đỉnh 7 ngày
+  tới (m³/s).
+
+Độ ẩm đất, xác suất mưa và lưu lượng sông trả về trong `live_context` để
+tham khảo, **KHÔNG đưa vào model** — dữ liệu huấn luyện (CSV) chưa có các
+cột này nên đưa vào sẽ phá train/serve parity (nguyên tắc 2.1). Khi CSV
+phiên bản sau bổ sung các cột đó, chỉ cần thêm vào
+`TERRAIN_FEATURE_NAMES` + train lại.
+
+### 7.3. Huấn luyện (`train_terrain.py`) & kết quả
+
+130 mẫu là dataset nhỏ → cây nông (`max_depth=3`), learning rate thấp,
+regularization, và báo cáo bằng **5-fold cross-validation** (không phải
+accuracy trên tập train):
+
+| Hiểm hoạ | CV R² | CV MAE | Đúng cấp cảnh báo |
+|---|---|---|---|
+| Sạt lở (`satlo`) | 0.967 | 0.0195 | 92% |
+| Lũ quét (`luquet`) | 0.927 | 0.0217 | 88% |
+
+Top feature theo gain: sạt lở ← `rain_72h_mm`, `curvature_std`,
+`slope_mean_deg`; lũ quét ← `rain_24h_mm`, `log_flow_accum`, `twi_mean` —
+khớp trực giác vật lý (sạt lở do mưa tích luỹ dài + địa hình dốc; lũ quét
+do mưa cường độ ngắn + tụ nước).
+
+### 7.4. An toàn — cùng nguyên tắc graceful degradation
+
+- Chưa chạy `train_terrain.py` (hoặc load lỗi) → tự fallback về risk score
+  baseline tính sẵn trong CSV, response ghi rõ `mode: "csv_baseline"` —
+  không bao giờ 500 vì thiếu model (nguyên tắc 2.3, 2.6).
+- Flood API lỗi → `live_context.river_discharge_* = null`, response vẫn 200.
+- Nhãn `risk_satlo`/`risk_luquet` là **chỉ số mô hình hoá** từ DEM + mưa,
+  chưa phải thống kê thiệt hại lịch sử → toàn nhánh gắn tag [THAM KHẢO],
+  `/assess-risk` (rule engine) vẫn là nguồn cảnh báo chính thức.
+
+---
+
+## 8. Hợp đồng API
 
 ### `POST /assess-risk`
 Nhận 1 địa điểm + dự báo 3-7 ngày (khớp `DailyForecast` trong
@@ -425,7 +500,7 @@ Trả về (rule engine, luôn hoạt động):
 ```
 
 ### `POST /assess-risk-ml` — [SHADOW/DEMO]
-Cùng payload `AssessRiskRequest` với `/assess-risk` ở trên (mục 7). Trả về
+Cùng payload `AssessRiskRequest` với `/assess-risk` ở trên (mục 8). Trả về
 `{location_code, mode: "model" | "fallback_rule_engine", days: [{risk, bulletin}]}`
 — xem ví dụ đầy đủ + giải thích ở mục 6.5. **Không** dùng để tính cảnh báo
 thật; dùng cho demo/so sánh song song với `/assess-risk`.
@@ -436,12 +511,48 @@ thật; dùng cho demo/so sánh song song với `/assess-risk`.
 ```
 Trả về `{"flood_probability": 0.0-1.0, "mode": "model" | "mock"}`.
 
+### `GET /terrain-communes` — [THAM KHẢO]
+Danh bạ 130 xã (tên, centroid, độ dốc, TWI, cấp cảnh báo baseline) — nguồn
+cho dropdown/bản đồ phía dashboard.
+
+### `POST /assess-terrain-risk` — [THAM KHẢO]
+```json
+{"commune": "Mường Phăng", "rain_24h_mm": 45.0, "rain_72h_mm": 120.0}
+```
+Số liệu mưa bỏ trống thì dùng snapshot trong CSV. Trả về:
+```json
+{
+  "commune": "Mường Phăng",
+  "satlo":  {"risk_score": 0.32, "warning_level": 2, "mode": "model"},
+  "luquet": {"risk_score": 0.16, "warning_level": 1, "mode": "model"},
+  "rain_used_mm": {"rain_1h_mm": 0.3, "rain_24h_mm": 45.0, "rain_72h_mm": 120.0, "rain_next_24h_mm": 6.7}
+}
+```
+`mode: "csv_baseline"` nếu chưa chạy `train_terrain.py`. Xã không có trong
+danh bạ → 404.
+
+### `GET /assess-terrain-risk-live?commune=<tên xã>` — [THAM KHẢO]
+Như trên nhưng mưa lấy **live** từ Open-Meteo tại centroid xã, thêm:
+```json
+{
+  "live_context": {
+    "fetched_at": "2026-07-19T01:22:33+07:00",
+    "soil_moisture_0_7cm": 0.495,
+    "precip_prob_max_next_24h_pct": 100.0,
+    "river_discharge_m3s": 2.91,
+    "river_discharge_max_7d_m3s": 3.84
+  }
+}
+```
+Lỗi Open-Meteo Forecast API → 502; lỗi Flood API → các trường
+`river_discharge_*` = `null`, vẫn 200.
+
 ### `GET /health`
 `{"status": "ok"}` — dùng cho `HEALTHCHECK` trong Dockerfile.
 
 ---
 
-## 8. Cài đặt & chạy
+## 9. Cài đặt & chạy
 
 ```bash
 python -m venv .venv && .venv/Scripts/activate   # Windows (PowerShell/Git Bash)
@@ -449,7 +560,7 @@ pip install -r requirements.txt
 uvicorn app:app --reload --port 8000
 ```
 
-## 9. Huấn luyện & đánh giá lại model
+## 10. Huấn luyện & đánh giá lại model
 
 ```bash
 # Nhánh multi-hazard (shadow, đã nối /assess-risk-ml)
@@ -458,13 +569,19 @@ python eval_xgb.py --samples 10000 --save-report models/eval_report.json
 
 # Nhánh lũ quét nhị phân (đã nối /predict-flood-risk)
 python train_flood.py
+
+# Nhánh sạt lở + lũ quét theo 130 xã (đã nối /assess-terrain-risk*)
+python train_terrain.py --fetch-elevation   # lần đầu: gọi Elevation API + cache
+python train_terrain.py                     # các lần sau: dùng cache độ cao
 ```
 Sau khi train lại, khởi động lại `uvicorn` (hoặc gọi `ml_engine.reload_models()`
 trong test/script) để nạp model mới.
 
-## 10. Testing
+## 11. Testing
 
 ```bash
+python -m pytest -q          # chạy toàn bộ (pytest gom cả test unittest cũ)
+# hoặc kiểu cũ, không gồm test_terrain:
 python -m unittest test_downscale test_risk test_bulletin test_flood test_ml_engine -v
 ```
 | Test file | Phạm vi |
@@ -474,24 +591,26 @@ python -m unittest test_downscale test_risk test_bulletin test_flood test_ml_eng
 | `test_bulletin.py` | Sinh bản tin từ template |
 | `test_flood.py` | Feature engineering + `POST /predict-flood-risk` |
 | `test_ml_engine.py` | `assess_risk_ml()` + `POST /assess-risk-ml` (shape, traceability trong `detail`, không lỗi 500 nhiều ngày) |
+| `test_terrain.py` | Nhánh #3: nạp CSV 130 xã, ngưỡng cấp 1-5, parse payload Open-Meteo/GloFAS (offline), `POST /assess-terrain-risk`, 404, fallback mode |
 
 Thủ công: `GET /health`, `POST /assess-risk`, `POST /predict-flood-risk`,
-`POST /assess-risk-ml` với payload ở mục 7.
+`POST /assess-risk-ml`, `POST /assess-terrain-risk` với payload ở mục 8.
 
-## 11. Docker
+## 12. Docker
 
 ```bash
 docker build -t forestgump-ai-engine ./ai_engine
 docker run -p 8000:8000 forestgump-ai-engine
 ```
-`Dockerfile` chỉ copy các file cần cho **đường quyết định chính** (`app.py`,
-`risk_engine.py`, `thresholds.py`, `downscale.py`, `bulletin.py`,
-`train_flood.py`) + `HEALTHCHECK` gọi `/health`. `flood_model.json` mặc định
-**không** được copy vào image (dòng `COPY` bị comment out) — service tự chạy
-ở `mode="mock"` cho tới khi build lại với model đã train, đúng nguyên tắc
-"luôn trả lời được, không lỗi vì thiếu model".
+`Dockerfile` copy code service + `data/` (danh bạ 130 xã + cache độ cao —
+cần cho `/terrain-communes` và fallback `csv_baseline`) + `HEALTHCHECK` gọi
+`/health`. `flood_model.json` và `models/` mặc định **không** được copy vào
+image (dòng `COPY` bị comment out) — service tự chạy ở mode
+fallback (`mock`/`fallback_rule_engine`/`csv_baseline`) cho tới khi build
+lại với model đã train, đúng nguyên tắc "luôn trả lời được, không lỗi vì
+thiếu model".
 
-## 12. Giới hạn đã biết & nguyên tắc an toàn
+## 13. Giới hạn đã biết & nguyên tắc an toàn
 
 - **Không có dữ liệu lịch sử/quan trắc thật** cho 3 loại thiên tai ở Điện
   Biên — mọi ngưỡng dựa trên văn bản nghiệp vụ (NCHMF, QĐ 18/2021/QĐ-TTg,
@@ -508,14 +627,22 @@ docker run -p 8000:8000 forestgump-ai-engine
 - **`POST /assess-risk-ml` chỉ để demo/so sánh**, tuyệt đối không dùng làm
   nguồn cảnh báo thật (xem mục 6.5) — model phía sau nó chưa được kiểm chứng
   độc lập với rule engine bằng dữ liệu quan trắc thật.
+- Nhãn `risk_satlo`/`risk_luquet` của nhánh #3 (mục 7) là **chỉ số mô hình
+  hoá** từ DEM + mưa (chưa phải thống kê thiệt hại lịch sử); CV R² cao đo
+  mức khớp với chỉ số đó, không phải với sạt lở/lũ quét thật. GloFAS độ phân
+  giải ~5km — tại suối nhỏ miền núi chỉ mang tính tham khảo.
 - Chi tiết đầy đủ + nguồn tham chiếu từng ngưỡng: `docs/architecture.md`
   mục 4, 5.
 
-## 13. Roadmap
+## 14. Roadmap
 
-**Đã hoàn thành:** `POST /assess-risk-ml` (mục 6.5) — route shadow cho
-nhánh multi-hazard, chạy song song `/assess-risk` trên payload thật, tự báo
-`mode` để phân biệt kết quả XGBoost thật với fallback rule engine.
+**Đã hoàn thành:**
+- `POST /assess-risk-ml` (mục 6.5) — route shadow cho nhánh multi-hazard,
+  chạy song song `/assess-risk` trên payload thật, tự báo `mode` để phân
+  biệt kết quả XGBoost thật với fallback rule engine.
+- Nhánh ML #3 (mục 7) — model sạt lở + lũ quét theo 130 xã train từ đặc
+  trưng DEM thật (`docs/dienbien_risk_theo_xa.csv`), mưa live Open-Meteo +
+  GloFAS qua `/assess-terrain-risk-live`.
 
 Theo khuyến nghị review (`docs/eval.odt`), các hướng sau **ngoài phạm vi
 MVP** hiện tại:
@@ -531,28 +658,39 @@ MVP** hiện tại:
 - Chuyển `thresholds.py`/`alert-dienbien.ts` sang file cấu hình JSON/YAML
   dùng chung, giảm nguy cơ lệch ngưỡng giữa backend và AI Engine.
 
-## 14. Cấu trúc thư mục
+## 15. Cấu trúc thư mục
 
 ```
 ai_engine/
-├── app.py                  # FastAPI service — 4 endpoints (health, assess-risk, predict-flood-risk, assess-risk-ml)
+├── app.py                  # FastAPI service — 7 endpoints (health, assess-risk, predict-flood-risk, assess-risk-ml, terrain-communes, assess-terrain-risk[-live])
 ├── risk_engine.py          # Rule engine — nguồn quyết định chính
 ├── thresholds.py           # Ngưỡng cảnh báo đã xác nhận nghiệp vụ
 ├── downscale.py            # Hiệu chỉnh nhiệt độ theo cao độ + hệ số sương mù
 ├── bulletin.py             # Sinh bản tin từ template (guardrailed)
-├── ml_features.py          # Feature engineering dùng chung train/serve
+├── ml_features.py          # Feature engineering dùng chung train/serve (nhánh #2)
 ├── ml_engine.py            # ModelRegistry + inference multi-hazard (shadow)
 ├── train_xgb.py            # Train 3 model multi-class (distillation)
 ├── eval_xgb.py             # Đánh giá độc lập trên tập test riêng
 ├── train_flood.py          # Train model nhị phân xác suất lũ quét
 ├── flood_model.json        # [optional] model lũ quét đã train
+├── terrain_features.py     # Nhánh #3: nạp CSV 130 xã + build feature chung train/serve
+├── terrain_engine.py       # Nhánh #3: TerrainRegistry + predict, fallback csv_baseline
+├── train_terrain.py        # Nhánh #3: train 2 model hồi quy satlo/luquet (5-fold CV)
+├── live_features.py        # Live API: Open-Meteo Forecast/Flood(GloFAS)/Elevation
+├── data/
+│   ├── dienbien_risk_theo_xa.csv   # Bản sao docs/ — 130 xã, DEM + mưa + risk baseline
+│   └── commune_elevation.json      # Cache độ cao (train_terrain.py --fetch-elevation)
 ├── models/
 │   ├── cold_damage.xgb.json
 │   ├── heavy_rain_flood.xgb.json
 │   ├── fog.xgb.json
 │   ├── metadata.json       # Versioning: trained_at, feature_names, accuracy
-│   └── eval_report.json    # Kết quả eval_xgb.py gần nhất
-├── test_*.py                # Unit test (test_downscale, test_risk, test_bulletin, test_flood, test_ml_engine)
+│   ├── eval_report.json    # Kết quả eval_xgb.py gần nhất
+│   └── terrain/
+│       ├── satlo.xgb.json      # Model hồi quy risk sạt lở
+│       ├── luquet.xgb.json     # Model hồi quy risk lũ quét
+│       └── metadata.json       # trained_at, feature_names, CV R²/MAE/đúng-cấp
+├── test_*.py                # Unit test (test_downscale, test_risk, test_bulletin, test_flood, test_ml_engine, test_terrain)
 ├── requirements.txt
 └── Dockerfile
 ```

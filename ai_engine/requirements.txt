@@ -5,3 +5,6 @@ uvicorn[standard]
 xgboost
 scikit-learn
 numpy
+
+# --- Live features (Open-Meteo/GloFAS, xem live_features.py) ---
+httpx
