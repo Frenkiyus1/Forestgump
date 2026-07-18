@@ -106,6 +106,62 @@ class TestComputeRisk(unittest.TestCase):
         mountain_fog = next(h for h in mountain.hazards if h.hazard == "fog")
         self.assertGreater(valley_fog.risk_score, mountain_fog.risk_score)
 
+    def test_fog_uses_forecast_visibility_when_available(self):
+        # Không khí khô (hệ số heuristic ~0) nhưng model dự báo tầm nhìn 30m
+        # (< 50m WMO) -> phải cảnh báo đỏ theo tín hiệu tầm nhìn.
+        dry = dict(humidity_pct=50.0, dew_point_c=12.0, temp_min_c=22.0, temp_max_c=28.0)
+        risk = compute_risk(_location(), _forecast(**dry, visibility_min_m=30.0))
+        fog = next(h for h in risk.hazards if h.hazard == "fog")
+        self.assertEqual(fog.alert_level, "red")
+
+    def test_fog_visibility_bands_follow_wmo(self):
+        dry = dict(humidity_pct=50.0, dew_point_c=12.0, temp_min_c=22.0, temp_max_c=28.0)
+        for visibility, expected in [(30.0, "red"), (500.0, "yellow"), (5000.0, "green")]:
+            risk = compute_risk(_location(), _forecast(**dry, visibility_min_m=visibility))
+            fog = next(h for h in risk.hazards if h.hazard == "fog")
+            self.assertEqual(fog.alert_level, expected, f"visibility={visibility}")
+
+    def test_fog_heuristic_escalates_max_one_level_over_visibility(self):
+        # Tầm nhìn dự báo quang (green) nhưng độ ẩm bão hoà + chênh nhiệt-điểm
+        # sương ~0 (hệ số heuristic đỏ) -> chỉ nâng 1 cấp (green -> yellow),
+        # KHÔNG nhảy thẳng đỏ — đêm mùa ẩm nhiệt đới gần như luôn bão hoà, cho
+        # heuristic quyền phủ quyết tầm nhìn sẽ báo động giả quanh năm.
+        saturated = dict(humidity_pct=98.0, dew_point_c=19.8, temp_min_c=19.5, temp_max_c=20.5)
+        risk = compute_risk(_location(), _forecast(**saturated, visibility_min_m=20000.0))
+        fog = next(h for h in risk.hazards if h.hazard == "fog")
+        self.assertEqual(fog.alert_level, "yellow")
+
+    def test_fog_score_stays_inside_level_band(self):
+        # Điểm bị kẹp về band của level cuối — không được ở band đỏ khi level yellow.
+        saturated = dict(humidity_pct=98.0, dew_point_c=19.8, temp_min_c=19.5, temp_max_c=20.5)
+        risk = compute_risk(_location(), _forecast(**saturated, visibility_min_m=20000.0))
+        fog = next(h for h in risk.hazards if h.hazard == "fog")
+        self.assertGreaterEqual(fog.risk_score, 25.0)
+        self.assertLess(fog.risk_score, 60.0)
+
+    def test_fog_hourly_night_inputs_beat_daily_means(self):
+        # Trung bình ngày khô (spread 6°C) nhưng ban đêm chạm bão hoà
+        # (dew_spread_min ~0.3°C, độ ẩm max 99%) -> hệ số heuristic phải bắt được.
+        risk = compute_risk(
+            _location(),
+            _forecast(
+                humidity_pct=70.0,
+                dew_point_c=16.0,
+                temp_min_c=20.0,
+                temp_max_c=24.0,
+                dew_spread_min_c=0.3,
+                humidity_max_pct=99.0,
+            ),
+        )
+        fog = next(h for h in risk.hazards if h.hazard == "fog")
+        self.assertEqual(fog.alert_level, "red")
+
+    def test_rain_12h_from_hourly_triggers_yellow(self):
+        # Mưa 24h dưới ngưỡng 100mm nhưng dồn 60mm trong 12h (>= 50mm/12h) -> yellow.
+        risk = compute_risk(_location(), _forecast(precipitation_mm=80.0, rain_12h_mm=60.0))
+        rain = next(h for h in risk.hazards if h.hazard == "heavy_rain_flood")
+        self.assertEqual(rain.alert_level, "yellow")
+
     def test_no_history_edge_values_do_not_crash(self):
         loc = _location(elevation_m=0.0)
         forecast = _forecast(
