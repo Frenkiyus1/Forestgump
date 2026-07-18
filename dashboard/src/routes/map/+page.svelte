@@ -46,9 +46,9 @@
 <svelte:head><title>Map — Điện Biên — ForestGump</title></svelte:head>
 
 <AppShell compact={true} noHeader={true}>
-	<header class="mb-4">
+	<header class="mb-4 text-center">
 		<h1 class="text-2xl font-semibold tracking-tight text-gray-900">
-			Bản đồ Điện Biên
+			Bản đồ tỉnh Điện Biên (sau sát nhập)
 		</h1>
 	</header>
 
