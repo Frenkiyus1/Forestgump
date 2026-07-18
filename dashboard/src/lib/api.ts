@@ -1,6 +1,7 @@
 // Tất cả lệnh gọi REST API tới backend ForestGump tập trung ở đây (xem CLAUDE.md
 // mục 5.1) — dashboard không kết nối thẳng DB, chỉ gọi HTTPS API của backend.
-import { PUBLIC_API_URL } from '$env/static/public';
+import { env } from "$env/dynamic/public";
+const PUBLIC_API_URL = env.PUBLIC_API_URL ?? "";
 import type { DienBienForecastEntry } from './types';
 
 /**
