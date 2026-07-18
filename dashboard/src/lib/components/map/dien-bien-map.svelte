@@ -260,7 +260,7 @@
 			placeholder="Tìm xã/phường…"
 			autocomplete="off"
 			bind:value={searchQuery}
-			class="w-full shrink-0 rounded border border-[#d0d7e2] px-1.5 py-1 text-[25px]"
+			class="w-full shrink-0 rounded border border-[#d0d7e2] px-1.5 py-1 text-[18px]"
 		/>
 
 		<div class="flex min-h-0 flex-1 flex-col gap-px overflow-auto">
@@ -286,7 +286,7 @@
 						hidePin();
 					}}
 					class={clsx(
-						'flex items-center gap-2 rounded border-0 px-3 py-1.5 text-left text-[25px] transition',
+						'flex items-center gap-2 rounded border-0 px-3 py-1.5 text-left text-[18px] transition',
 						selectedId === region.id
 							? 'bg-[#fef3c7] text-[#92400e]'
 							: 'bg-[#f7f9fc] hover:bg-[#fef3c7] hover:text-[#92400e]'
