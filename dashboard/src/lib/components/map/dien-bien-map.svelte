@@ -231,7 +231,7 @@
 
 		{#if heat}
 			<div
-				class="pointer-events-none absolute right-3 bottom-3 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[11px] shadow-lg"
+				class="pointer-events-none absolute left-3 bottom-3 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[11px] shadow-lg"
 			>
 				<p class="mb-1.5 font-semibold text-gray-700">Chú giải</p>
 				<div class="flex flex-col gap-1">
