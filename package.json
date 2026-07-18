@@ -1,14 +1,13 @@
 {
   "name": "forestgump",
   "version": "1.0.0",
-  "description": "ForestGump - AI-Powered Salinity Intrusion Early Warning System (monorepo root)",
+  "description": "Forestgump - Dien Bien natural disaster early warning system (monorepo root)",
   "private": true,
   "type": "module",
   "scripts": {
     "dev:backend": "npm --prefix backend run dev",
     "dev:ai": "uvicorn app:app --reload --port 8000 --app-dir ai_engine",
-    "dev:satellite": "uvicorn app:app --reload --port 8010 --app-dir satellite_engine",
-    "dev": "concurrently -n backend,ai,satellite -c blue,green,yellow \"npm:dev:backend\" \"npm:dev:ai\" \"npm:dev:satellite\""
+    "dev": "concurrently -n backend,ai -c blue,green \"npm:dev:backend\" \"npm:dev:ai\""
   },
   "devDependencies": {
     "concurrently": "^9.2.3"

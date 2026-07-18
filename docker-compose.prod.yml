@@ -1,4 +1,4 @@
-# ForestGump - Triển khai production trên VPS (toàn bộ backend stack).
+# Forestgump - Triển khai production trên VPS (cảnh báo thiên tai Điện Biên).
 #
 #   docker compose -f docker-compose.prod.yml up -d --build
 #   docker compose -f docker-compose.prod.yml ps
@@ -7,65 +7,15 @@
 # Cần file .env (xem .env.prod.example) đặt cạnh file này.
 # Kiến trúc:
 #   Internet --443/80--> caddy --(reverse proxy)--> backend:3000   (HTTPS tự động)
-#   ESP32 ----8883 TLS----> mqtt                                    (MQTT over TLS)
-#   backend --> db:5432, mqtt:1883 (nội bộ), ai_engine:8000 (nội bộ), satellite_engine:8010 (nội bộ)
-# DB / AI Engine KHÔNG mở ra ngoài Internet.
+#   backend --> ai_engine:8000 (nội bộ, POST /assess-risk)
+#   backend --> Open-Meteo / OpenWeatherMap / NCHMF (ra Internet, không lưu DB)
+# Không có DB/MQTT — pipeline tính on-the-fly mỗi request (xem docs/architecture.md).
 
 services:
-  db:
-    image: timescale/timescaledb:latest-pg16
-    container_name: forestgump-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - db-data:/var/lib/postgresql/data
-      - ./backend/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    # Không publish cổng 5432 ra ngoài — chỉ truy cập trong mạng docker.
-
-  mqtt:
-    image: eclipse-mosquitto:2
-    container_name: forestgump-mqtt
-    restart: unless-stopped
-    ports:
-      - "8883:8883" # TLS công khai cho thiết bị ngoài hiện trường
-      - "1884:1884" # TẠM: demo không TLS (xem ghi chú trong mosquitto.prod.conf) - xoá khi 8883/cert chạy được
-    volumes:
-      - ./infra/mosquitto/mosquitto.prod.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./infra/mosquitto/passwd:/mosquitto/config/passwd:ro
-      - ./infra/mosquitto/certs:/mosquitto/certs:ro
-      - mqtt-data:/mosquitto/data
-
   ai_engine:
     build: ./ai_engine
     container_name: forestgump-ai
     restart: unless-stopped
-    environment:
-      MODEL_PATH: /models/xgboost_model.json
-      MODEL_48H_PATH: /models/xgboost_model_48h.json
-    volumes:
-      # Đặt file model vào ./ai_engine/models/ trên VPS (nếu chưa có -> mock mode).
-      - ./ai_engine/models:/models:ro
-    # Không publish cổng — chỉ backend gọi nội bộ.
-
-  satellite_engine:
-    build: ./satellite_engine
-    container_name: forestgump-satellite
-    restart: unless-stopped
-    environment:
-      SATELLITE_CHECKPOINT: /models/segformer_b0_best.pt
-      # VPS không có Apple MPS -> ép torch chạy CPU.
-      SATELLITE_DEVICE: cpu
-    volumes:
-      # Đặt file model vào ./satellite_engine/models/ trên VPS (nếu chưa có -> model_loaded=false).
-      - ./satellite_engine/models:/models:ro
     # Không publish cổng — chỉ backend gọi nội bộ.
 
   backend:
@@ -73,38 +23,13 @@ services:
     container_name: forestgump-backend
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
-      mqtt:
-        condition: service_started
       ai_engine:
         condition: service_started
-      satellite_engine:
-        condition: service_started
     environment:
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      DB_HOST: db
-      DB_PORT: 5432
-      MQTT_URL: mqtt://mqtt:1883 # nội bộ docker, không cần TLS
-      AI_ENGINE_URL: http://ai_engine:8000/predict
-      SATELLITE_ENGINE_BASE_URL: http://satellite_engine:8010
-      SATELLITE_ENGINE_TIMEOUT_MS: ${SATELLITE_ENGINE_TIMEOUT_MS:-30000}
+      AI_ENGINE_BASE_URL: http://ai_engine:8000
       API_PORT: 3000
-      REAL_STATION_ID: ${REAL_STATION_ID}
       CORS_ORIGIN: ${CORS_ORIGIN}
-      # Chatbot (Gemini) + email cảnh báo (Gmail SMTP).
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      CHAT_MODEL: ${CHAT_MODEL:-gemini-3.1-flash-lite}
-      GMAIL_USER: ${GMAIL_USER}
-      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
-      # Gọi điện + SMS cảnh báo khẩn cấp (mức đỏ) qua Stringee.
-      STRINGEE_SID: ${STRINGEE_SID}
-      STRINGEE_SECRET: ${STRINGEE_SECRET}
-      STRINGEE_FROM_NUMBER: ${STRINGEE_FROM_NUMBER}
-      ALERT_TO_NUMBER: ${ALERT_TO_NUMBER}
-      PUBLIC_WEBHOOK_URL: ${PUBLIC_WEBHOOK_URL}
+      OPENWEATHERMAP_API_KEY: ${OPENWEATHERMAP_API_KEY}
     # Không publish 3000 — Caddy reverse proxy.
 
   caddy:
@@ -124,7 +49,5 @@ services:
       - backend
 
 volumes:
-  db-data:
-  mqtt-data:
   caddy-data:
   caddy-config:

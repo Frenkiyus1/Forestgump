@@ -6,7 +6,6 @@ import 'dotenv/config';
 import { DIEN_BIEN_LOCATIONS, type DienBienLocation } from './config/locations.js';
 import { openMeteoForecastSchema } from './schemas.js';
 import { fetchOpenWeatherMapForecast } from './weather-openweathermap.js';
-import { upsertWeatherForecast } from './db.js';
 import type { DailyForecast, LocationWeather } from './weather-types.js';
 
 const OPEN_METEO_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -111,14 +110,10 @@ export async function fetchLocationForecast(location: DienBienLocation): Promise
 }
 
 /**
- * Lấy dự báo cho cả 3 địa điểm demo (song song), lưu vào bảng
- * `weather_forecast` (best-effort, không chặn response nếu DB lỗi), và trả
- * về dữ liệu ingest thô — dùng cho GET /api/weather-raw.
+ * Lấy dự báo cho cả 3 địa điểm demo (song song) — dùng cho
+ * GET /api/weather-raw và làm đầu vào cho buildDienBienForecast(). Pipeline
+ * MVP không có bước lưu DB (tính on-the-fly mỗi request, xem docs/architecture.md).
  */
 export async function fetchAllLocationsForecast(): Promise<LocationWeather[]> {
-  const results = await Promise.all(
-    DIEN_BIEN_LOCATIONS.map((location) => fetchLocationForecast(location))
-  );
-  await Promise.all(results.map((weather) => upsertWeatherForecast(weather)));
-  return results;
+  return Promise.all(DIEN_BIEN_LOCATIONS.map((location) => fetchLocationForecast(location)));
 }
