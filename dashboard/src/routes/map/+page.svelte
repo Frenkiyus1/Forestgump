@@ -36,22 +36,30 @@
 	const HAZARDS: DienBienHazard[] = ['cold_damage', 'heavy_rain_flood', 'fog'];
 
 	function selectRegion(id: number) {
-		const r = HOTSPOT_REGIONS.find((r) => r.id === id) ?? null;
-		if (r && HAZARD_HEATMAP_ANCHOR_NAMES.has(r.name)) {
+		const region = HOTSPOT_REGIONS.find((item) => item.id === id) ?? null;
+		if (!region) {
+			selectedRegion = null;
+			return;
+		}
+
+		if (HAZARD_HEATMAP_ANCHOR_NAMES.has(region.name)) {
 			const slug =
-				r.name === 'Phường Điện Biên Phủ'
+				region.name === 'Phường Điện Biên Phủ'
 					? 'dien-bien-phu'
-					: r.name === 'Xã Mường Nhé'
+					: region.name === 'Xã Mường Nhé'
 						? 'muong-nhe'
 						: 'tua-chua';
 			goto(resolve(`/map/${slug}`));
 			return;
 		}
-		selectedRegion = r;
+
+		selectedRegion = region;
 	}
+
 	function backToOverview() {
 		selectedRegion = null;
 	}
+
 	function formatDay(iso: string): string {
 		const d = new Date(iso);
 		if (Number.isNaN(d.getTime())) return iso;
@@ -73,12 +81,36 @@
 		</div>
 	{/if}
 
-	<div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-		<div class="flex flex-wrap gap-1.5" role="group" aria-label="Chọn loại hiểm hoạ">
-			{#each HAZARDS as hazard (hazard)}
+	<div class="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+		<div class="flex flex-col gap-2">
+			<div class="flex flex-wrap items-center gap-2">
 				<button
 					type="button"
 					onclick={backToOverview}
+					class="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+				>
+					Tổng quan
+				</button>
+				{#if selectedRegion}
+					<span aria-hidden="true" class="text-gray-400">›</span>
+					<span class="text-sm font-semibold text-gray-900">{selectedRegion.name}</span>
+				{/if}
+			</div>
+			<p class="text-sm text-gray-500">
+				{#if !selectedRegion}
+					Chọn vùng trên bản đồ để xem chi tiết, hoặc đổi loại rủi ro/ngày để xem heatmap.
+				{:else}
+					Khu vực {selectedRegion.name} — mã vùng {selectedRegion.id}.
+				{/if}
+			</p>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-2">
+			{#each HAZARDS as hazard (hazard)}
+				<button
+					type="button"
+					onclick={() => (selectedHazard = hazard)}
+					aria-pressed={selectedHazard === hazard}
 					class={clsx(
 						'rounded-full px-3 py-1.5 text-sm font-medium transition',
 						selectedHazard === hazard
@@ -86,117 +118,75 @@
 							: 'bg-gray-100 text-gray-600 hover:bg-gray-200'
 					)}
 				>
-					Điện Biên
+					{DIENBIEN_HAZARD_LABEL[hazard]}
 				</button>
-				{#if selectedRegion}
-					<span aria-hidden="true">›</span>
-					<span class="font-semibold text-gray-900">{selectedRegion.name}</span>
-				{/if}
-			</nav>
+			{/each}
 
-			<h1
-				class="text-2xl leading-tight font-semibold tracking-tight"
-				style="font-family: 'Lora', serif;"
-			>
-				{selectedRegion ? selectedRegion.name : 'Điện Biên'}
-			</h1>
-			<p class="mt-1 text-sm text-gray-500">
-				{#if !selectedRegion}
-					Chọn một khu vực tại Điện Biên để xem chi tiết, hoặc đổi hiểm hoạ/ngày để xem heatmap
-					cảnh báo.
-				{:else}
-					Khu vực {selectedRegion.name} — mã vùng {selectedRegion.id}.
-				{/if}
-			</p>
-		</div>
-
-		<div class="mb-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
-			<div class="flex flex-wrap gap-1.5" role="group" aria-label="Chọn loại hiểm hoạ">
-				{#each HAZARDS as hazard (hazard)}
+			{#if days.length}
+				{#each days as day, i (day)}
 					<button
 						type="button"
-						onclick={() => (selectedHazard = hazard)}
-						aria-pressed={selectedHazard === hazard}
+						onclick={() => (selectedDayIndex = i)}
+						aria-pressed={selectedDayIndex === i}
 						class={clsx(
-							'rounded-full px-3 py-1.5 text-xs font-medium transition',
-							selectedHazard === hazard
-								? 'bg-gray-900 text-white'
+							'rounded-lg px-2.5 py-1 text-[11px] font-medium transition',
+							selectedDayIndex === i
+								? 'bg-accent text-white'
 								: 'bg-gray-100 text-gray-600 hover:bg-gray-200'
 						)}
 					>
-						{DIENBIEN_HAZARD_LABEL[hazard]}
+						{formatDay(day)}
 					</button>
 				{/each}
-			</div>
+			{/if}
+		</div>
+	</div>
 
-			{#if days.length}
-				<div class="hidden h-5 w-px shrink-0 bg-gray-200 sm:block" aria-hidden="true"></div>
-				<div class="flex flex-wrap gap-1" role="group" aria-label="Chọn ngày dự báo">
-					{#each days as day, i (day)}
-						<button
-							type="button"
-							onclick={() => (selectedDayIndex = i)}
-							aria-pressed={selectedDayIndex === i}
+	<div class="min-h-[70vh]">
+		{#if !selectedRegion}
+			<DienBienMap
+				regions={HOTSPOT_REGIONS}
+				onSelect={selectRegion}
+				{heat}
+				forecastEntries={data.forecastEntries}
+			/>
+		{:else}
+			<div class={clsx(CARD, 'overflow-auto p-6')}>
+				<div class="flex flex-wrap items-start justify-between gap-4">
+					<div>
+						<p class="text-lg font-semibold text-gray-900">{selectedRegion.name}</p>
+						<p class="mt-1 text-sm text-gray-500">Mã vùng: {selectedRegion.id}</p>
+					</div>
+					{#if selectedHeat}
+						<span
 							class={clsx(
-								'rounded-lg px-2.5 py-1 text-[11px] font-medium transition',
-								selectedDayIndex === i
-									? 'bg-accent text-white'
-									: 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+								'rounded-full px-3 py-1 text-sm font-semibold',
+								ALERT_BADGE[selectedHeat.alertLevel]
 							)}
 						>
-							{formatDay(day)}
-						</button>
-					{/each}
-				</div>
-			{/if}
-		</div>
-
-		<div class="min-h-0 flex-1 overflow-auto">
-			{#if !selectedRegion}
-				<DienBienMap
-					regions={HOTSPOT_REGIONS}
-					onSelect={selectRegion}
-					{heat}
-					forecastEntries={data.forecastEntries}
-				/>
-			{:else}
-				<div class={clsx(CARD, 'h-full overflow-auto p-8')}>
-					<div class="flex flex-wrap items-start justify-between gap-4">
-						<div>
-							<p class="text-lg font-semibold text-gray-900">{selectedRegion.name}</p>
-							<p class="mt-1 text-sm text-gray-500">Mã vùng: {selectedRegion.id}</p>
-						</div>
-						{#if selectedHeat}
-							<span
-								class={clsx(
-									'rounded-full px-3 py-1 text-sm font-semibold',
-									ALERT_BADGE[selectedHeat.alertLevel]
-								)}
-							>
-								{ALERT_LABEL[selectedHeat.alertLevel]} — {DIENBIEN_HAZARD_LABEL[selectedHazard]}
-							</span>
-						{/if}
-					</div>
-
-					{#if selectedHeat}
-						<div class="mt-4 text-sm text-gray-600">
-							{#if selectedHeat.isAnchor}
-								<p class="font-medium text-emerald-700">● Dữ liệu đo thật tại địa điểm này.</p>
-							{:else}
-								<p>
-									○ Ước tính theo vùng địa hình từ dữ liệu đo tại
-									<strong>{selectedHeat.sourceAnchorName ?? '—'}</strong>
-									— độ tin cậy phân loại địa hình:
-									<strong>{selectedHeat.confidence}</strong>.
-								</p>
-							{/if}
-							{#if selectedHeat.detail}
-								<p class="mt-2">{selectedHeat.detail}</p>
-							{/if}
-						</div>
+							{ALERT_LABEL[selectedHeat.alertLevel]} — {DIENBIEN_HAZARD_LABEL[selectedHazard]}
+						</span>
 					{/if}
 				</div>
-			{/if}
-		</div>
 
+				{#if selectedHeat}
+					<div class="mt-4 text-sm text-gray-600">
+						{#if selectedHeat.isAnchor}
+							<p class="font-medium text-emerald-700">● Dữ liệu đo thật tại địa điểm này.</p>
+						{:else}
+							<p>
+								○ Ước tính theo vùng địa hình từ dữ liệu đo tại
+								<strong>{selectedHeat.sourceAnchorName ?? '—'}</strong>
+								— độ tin cậy phân loại địa hình:
+								<strong>{selectedHeat.confidence}</strong>.
+							</p>
+						{/if}
+						{#if selectedHeat.detail}
+							<p class="mt-2">{selectedHeat.detail}</p>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		{/if}
+	</div>
 </AppShell>
