@@ -43,13 +43,15 @@
 <svelte:head><title>Tổng quan — ForestGump</title></svelte:head>
 
 <AppShell {lang} onLangChange={(l) => (lang = l)}>
-	<div class="mb-8">
-		{#if bulletinLoading}
-			<AlertBannerSkeleton />
-		{:else}
-			<AlertBanner alert={featured.alert} {bulletin} {bulletinLoading} />
-		{/if}
-	</div>
+	{#if featured.alert}
+		<div class="mb-8">
+			{#if bulletinLoading}
+				<AlertBannerSkeleton />
+			{:else}
+				<AlertBanner alert={featured.alert} {bulletin} {bulletinLoading} />
+			{/if}
+		</div>
+	{/if}
 
 	<HomeHero total={data.summary.total} />
 	<HomeKpiRow summary={data.summary} details={data.details} />
