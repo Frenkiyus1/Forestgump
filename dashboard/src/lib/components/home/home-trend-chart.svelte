@@ -26,6 +26,7 @@
 		})
 	);
 	function smooth(p: readonly (readonly [number, number])[]): string {
+		if (p.length === 0) return '';
 		let d = `M ${p[0][0]} ${p[0][1]}`;
 		for (let i = 0; i < p.length - 1; i++) {
 			const p0 = p[i - 1] ?? p[i];
@@ -42,9 +43,11 @@
 	}
 	const linePath = $derived(smooth(pts));
 	const areaPath = $derived(
-		`${linePath} L ${pts[pts.length - 1][0]} ${H - PAD} L ${pts[0][0]} ${H - PAD} Z`
+		pts.length === 0
+			? ''
+			: `${linePath} L ${pts[pts.length - 1][0]} ${H - PAD} L ${pts[0][0]} ${H - PAD} Z`
 	);
-	const peak = $derived(Math.max(...rain));
+	const peak = $derived(rain.length ? Math.max(...rain) : 0);
 
 	let hoveredIdx = $state<number | null>(null);
 </script>
