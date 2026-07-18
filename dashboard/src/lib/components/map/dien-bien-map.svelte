@@ -186,7 +186,7 @@
 						style="left: {(pinPos.x / 926) * 100}%; top: {(pinPos.y / 1178) * 100}%;"
 					>
 					<div
-						class="min-w-[160px] max-w-[260px] rounded-xl bg-[rgba(17,24,39,0.92)] px-3 py-2 text-[18px] text-white shadow-xl"
+						class="min-w-[160px] max-w-[260px] rounded-xl bg-[rgba(17,24,39,0.92)] px-3 py-2 text-[17px] text-white shadow-xl"
 					>
 							<small class="block text-amber-200">Đơn vị số {pinRegion.id}</small>
 							<strong class="block text-white">{pinRegion.name}</strong>
@@ -197,12 +197,12 @@
 										style="background-color: {ALERT_HEX[pinHeat.alertLevel]}"
 										aria-hidden="true"
 									></span>
-									<span class="text-[18px] font-semibold">{ALERT_LABEL[pinHeat.alertLevel]}</span>
+									<span class="text-[17px] font-semibold">{ALERT_LABEL[pinHeat.alertLevel]}</span>
 								</div>
 								{#if pinHeat.isAnchor}
-									<p class="mt-1 text-[18px] text-emerald-300">● Dữ liệu đo thật</p>
+									<p class="mt-1 text-[17px] text-emerald-300">● Dữ liệu đo thật</p>
 								{:else}
-									<p class="mt-1 text-[18px] text-white/60">
+									<p class="mt-1 text-[17px] text-white/60">
 										○ Ước tính theo vùng địa hình{pinHeat.confidence === 'low'
 											? ' (độ tin cậy thấp)'
 											: ''}
@@ -210,7 +210,7 @@
 								{/if}
 								{#if pinHeat.weather}
 									<dl
-										class="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-white/15 pt-1.5 text-[18px] text-white/85"
+										class="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-white/15 pt-1.5 text-[17px] text-white/85"
 									>
 										<dt class="text-white/50">Nhiệt độ</dt>
 										<dd>{pinHeat.weather.tempMinC}–{pinHeat.weather.tempMaxC}°C</dd>
@@ -231,7 +231,7 @@
 
 		{#if heat}
 			<div
-				class="pointer-events-none absolute left-3 bottom-3 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[18px] shadow-lg"
+				class="pointer-events-none absolute left-3 bottom-3 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[17px] shadow-lg"
 			>
 				<p class="mb-1.5 font-semibold text-gray-700">Chú giải</p>
 				<div class="flex flex-col gap-1">
@@ -260,7 +260,7 @@
 			placeholder="Tìm xã/phường…"
 			autocomplete="off"
 			bind:value={searchQuery}
-			class="w-full shrink-0 rounded border border-[#d0d7e2] px-1.5 py-1 text-[18px]"
+			class="w-full shrink-0 rounded border border-[#d0d7e2] px-1.5 py-1 text-[17px]"
 		/>
 
 		<div class="flex min-h-0 flex-1 flex-col gap-px overflow-auto">
@@ -286,7 +286,7 @@
 						hidePin();
 					}}
 					class={clsx(
-						'flex items-center gap-2 rounded border-0 px-3 py-1.5 text-left text-[18px] transition',
+						'flex items-center gap-2 rounded border-0 px-3 py-1.5 text-left text-[17px] transition',
 						selectedId === region.id
 							? 'bg-[#fef3c7] text-[#92400e]'
 							: 'bg-[#f7f9fc] hover:bg-[#fef3c7] hover:text-[#92400e]'
@@ -304,7 +304,7 @@
 			{/each}
 		</div>
 
-		<p class="shrink-0 text-[18px] text-[#667085]">
+		<p class="shrink-0 text-[17px] text-[#667085]">
 			Bấm vào vùng trên bản đồ hoặc danh sách.
 		</p>
 	</aside>
