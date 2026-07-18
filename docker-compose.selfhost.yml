@@ -33,6 +33,10 @@ services:
       API_PORT: 3000
       CORS_ORIGIN: ${CORS_ORIGIN}
       OPENWEATHERMAP_API_KEY: ${OPENWEATHERMAP_API_KEY}
+      # Chat widget (POST /api/chat) — để trống nếu chưa dùng tính năng chat,
+      # backend tự trả 503 cho route đó, không ảnh hưởng phần còn lại.
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.1-flash-lite}
     # Không publish 3000 ra máy host — cloudflared gọi qua mạng nội bộ Docker.
 
   cloudflared:

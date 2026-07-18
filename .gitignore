@@ -21,9 +21,10 @@ __pycache__/
 infra/mosquitto/passwd
 infra/mosquitto/certs/
 
-# AI model artifacts (sinh lại bằng: python ai_engine/train.py)
+# AI model artifacts (sinh lại bằng: python ai_engine/train_xgb.py / train_flood.py)
 ai_engine/models/
 ai_engine/xgboost_model*.json
+ai_engine/flood_model.json
 
 # Log chạy local (uvicorn redirect)
 ai_engine/*.out

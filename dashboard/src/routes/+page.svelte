@@ -43,6 +43,17 @@
 <svelte:head><title>Tổng quan — ForestGump</title></svelte:head>
 
 <AppShell {lang} onLangChange={(l) => (lang = l)}>
+	{#if data.apiError}
+		<div
+			class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+		>
+			<p class="font-medium">
+				Chưa kết nối được backend — đang hiển thị dữ liệu mặc định (xanh lá).
+			</p>
+			<p class="mt-1 text-amber-700">{data.apiError}</p>
+		</div>
+	{/if}
+
 	{#if featured.alert}
 		<div class="mb-8">
 			{#if bulletinLoading}

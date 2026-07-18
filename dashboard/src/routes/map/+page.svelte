@@ -11,6 +11,8 @@
 		availableDays
 	} from '$lib/dienbien-heatmap';
 	import type { DienBienHazard } from '$lib/types';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import AppShell from '$lib/components/app-shell.svelte';
 	import DienBienMap, {
 		HAZARD_HEATMAP_ANCHOR_NAMES
@@ -35,9 +37,16 @@
 
 	function selectRegion(id: number) {
 		const r = HOTSPOT_REGIONS.find((r) => r.id === id) ?? null;
-		// Cả 3 anchor có dữ liệu đo thật (Tủa Chùa, Điện Biên Phủ, Mường Nhé) tự vẽ
-		// heatmap ngay trong DienBienMap — không điều hướng sang panel chi tiết của trang này.
-		if (r && HAZARD_HEATMAP_ANCHOR_NAMES.has(r.name)) return;
+		if (r && HAZARD_HEATMAP_ANCHOR_NAMES.has(r.name)) {
+			const slug =
+				r.name === 'Phường Điện Biên Phủ'
+					? 'dien-bien-phu'
+					: r.name === 'Xã Mường Nhé'
+						? 'muong-nhe'
+						: 'tua-chua';
+			goto(resolve(`/map/${slug}`));
+			return;
+		}
 		selectedRegion = r;
 	}
 	function backToOverview() {
