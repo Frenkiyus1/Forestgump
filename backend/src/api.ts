@@ -118,7 +118,7 @@ async function buildDienBienForecast(locations: DienBienLocation[]): Promise<Die
       entry.fetchedAt = weather.fetchedAt;
 
       try {
-        const assessed = await assessRisk(location, weather.daily);
+        const assessed = await assessRisk(location, weather.daily, weather.elevationGridM);
         const dailyByDate = new Map(weather.daily.map((d) => [d.date, d] as const));
         entry.days = assessed.days.map((dayAssessment) => {
           const raw = dailyByDate.get(dayAssessment.risk.date);

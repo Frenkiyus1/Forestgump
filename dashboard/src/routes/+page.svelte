@@ -22,21 +22,26 @@
 	// Khu vực nguy cấp nhất (còn ít giờ nhất) dẫn đầu trang — hành động cụ thể
 	// luôn là thứ đầu tiên người dùng thấy, không phải số liệu.
 	const featured = $derived(mostUrgent(data.details) ?? data.details[0]);
+	// Tách riêng locationId (giá trị nguyên thuỷ) khỏi featured (object). Poll
+	// 10s ở +layout.svelte tạo object `featured` mới mỗi lần dù nội dung không
+	// đổi -> nếu effect bên dưới đọc thẳng featured.locationId, nó vẫn bị coi
+	// là "có thay đổi" (object mới) và load lại bản tin, làm banner giật về
+	// skeleton mỗi 10s. Đọc qua $derived này thì Svelte chỉ coi là đổi khi
+	// chuỗi locationId thực sự khác.
+	const featuredLocationId = $derived(featured.locationId);
 
-	async function loadBulletin() {
+	async function loadBulletin(locationId: string, currentLang: Bulletin['lang']) {
 		bulletinLoading = true;
 		try {
-			const forecast = await getForecast(featured.locationId);
-			bulletin = await generateBulletin(forecast, lang);
+			const forecast = await getForecast(locationId);
+			bulletin = await generateBulletin(forecast, currentLang);
 		} finally {
 			bulletinLoading = false;
 		}
 	}
 
 	$effect(() => {
-		void featured.locationId;
-		void lang;
-		loadBulletin();
+		loadBulletin(featuredLocationId, lang);
 	});
 </script>
 
