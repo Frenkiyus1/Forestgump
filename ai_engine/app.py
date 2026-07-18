@@ -3,13 +3,20 @@
 Nhận dự báo thời tiết nhiều ngày (từ backend/src/weather-ingest.ts, nguồn
 Open-Meteo/OpenWeatherMap) qua HTTP POST, áp dụng rule engine (risk_engine.py,
 thresholds.py — KHÔNG phải machine learning) để đánh giá rủi ro rét đậm/rét
-hại, mưa lớn/lũ quét, sương mù, rồi sinh bản tin cảnh báo bằng LLM
-(bulletin.py). Rule-based nên luôn hoạt động, không có mock mode.
+hại, mưa lớn/lũ quét, sương mù, rồi sinh bản tin cảnh báo bằng template cố
+định đã kiểm duyệt trước (bulletin.py — CỐ TÌNH KHÔNG dùng LLM tự do sinh
+nội dung an toàn tính mạng). Rule-based nên luôn hoạt động, không có mock
+mode.
 
-Ngoài ra có 1 endpoint [OPTIONAL/DEMO] /predict-flood-risk dùng XGBoost
-(train_flood.py) làm THAM KHẢO bổ sung cho xác suất lũ quét — KHÔNG thay thế
-compute_risk() (vẫn là nguồn đánh giá chính cho /assess-risk). Xem cảnh báo
-đầy đủ trong train_flood.py.
+Ngoài ra có 2 endpoint ML chạy SONG SONG, KHÔNG thay thế rule engine:
+- [OPTIONAL/DEMO] /predict-flood-risk dùng XGBoost nhị phân (train_flood.py)
+  làm THAM KHẢO bổ sung cho xác suất lũ quét.
+- [SHADOW/DEMO] /assess-risk-ml dùng XGBoost multi-hazard (ml_engine.py,
+  distill từ compute_risk() trên dữ liệu tổng hợp) tính lại đúng 3 hiểm hoạ
+  của /assess-risk để so sánh/demo — tự fallback rule engine nếu model chưa
+  sẵn sàng.
+compute_risk() (risk_engine.py) vẫn là nguồn đánh giá CHÍNH cho /assess-risk
+và bản tin cảnh báo thật. Xem cảnh báo đầy đủ trong train_flood.py, ml_engine.py.
 """
 
 from pathlib import Path
@@ -20,6 +27,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from bulletin import generate_bulletin
+from ml_engine import assess_risk_ml, is_model_ready
 from risk_engine import ForecastInput, LocationInput, RiskAssessment, compute_risk
 from train_flood import FEATURE_NAMES as FLOOD_FEATURE_NAMES
 from train_flood import _true_flood_probability, build_flood_features
@@ -78,6 +86,35 @@ def assess_risk(data: AssessRiskRequest) -> AssessRiskResponse:
         bulletin = generate_bulletin(data.location, risk)
         days.append(DayAssessment(risk=risk, bulletin=bulletin))
     return AssessRiskResponse(location_code=data.location.code, days=days)
+
+
+class AssessRiskMlResponse(BaseModel):
+    location_code: str
+    mode: Literal["model", "fallback_rule_engine"]
+    days: list[DayAssessment]
+
+
+@app.post("/assess-risk-ml", response_model=AssessRiskMlResponse)
+def assess_risk_ml_endpoint(data: AssessRiskRequest) -> AssessRiskMlResponse:
+    """[SHADOW/DEMO] Đánh giá rủi ro bằng XGBoost multi-hazard
+    (ml_engine.assess_risk_ml, distill từ risk_engine.compute_risk trên dữ
+    liệu TỔNG HỢP) thay vì rule engine trực tiếp — CHẠY SONG SONG
+    `/assess-risk`, KHÔNG dùng làm nguồn quyết định cho cảnh báo thật (xem
+    `ai_engine/README.md` mục 6).
+
+    Cùng payload/response shape với `/assess-risk` (dùng lại DayAssessment,
+    generate_bulletin) — chỉ khác nguồn tính risk. Tự fallback rule engine
+    nếu model chưa train/lỗi load (assess_risk_ml không bao giờ raise), nên
+    endpoint này cũng không bao giờ lỗi 500; trường `mode` cho biết nguồn
+    thật sự đã dùng cho TOÀN BỘ response (3 model multi-hazard nạp/fallback
+    cùng lúc, không lệch giữa các ngày/hiểm hoạ)."""
+    mode: Literal["model", "fallback_rule_engine"] = "model" if is_model_ready() else "fallback_rule_engine"
+    days: list[DayAssessment] = []
+    for day_forecast in data.forecast:
+        risk = assess_risk_ml(data.location, day_forecast)
+        bulletin = generate_bulletin(data.location, risk)
+        days.append(DayAssessment(risk=risk, bulletin=bulletin))
+    return AssessRiskMlResponse(location_code=data.location.code, mode=mode, days=days)
 
 
 class PredictFloodRiskRequest(BaseModel):

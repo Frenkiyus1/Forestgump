@@ -8,11 +8,17 @@ ENV PYTHONUNBUFFERED=1 \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py risk_engine.py thresholds.py downscale.py bulletin.py train_flood.py ./
+COPY app.py risk_engine.py thresholds.py downscale.py bulletin.py \
+     train_flood.py ml_features.py ml_engine.py ./
 # [OPTIONAL] flood_model.json: nếu đã chạy `python train_flood.py` để train,
 # copy thêm file model vào đây (image build sẽ lỗi nếu bật dòng dưới mà file
 # chưa tồn tại — mặc định COMMENT OUT, /predict-flood-risk tự fallback mock).
 # COPY flood_model.json ./
+# [OPTIONAL] models/: nếu đã chạy `python train_xgb.py` để train nhánh
+# multi-hazard, copy thêm thư mục model vào đây để /assess-risk-ml trả
+# mode="model" (mặc định COMMENT OUT, /assess-risk-ml tự fallback rule engine
+# — mode="fallback_rule_engine", không lỗi 500, xem README mục 6.5).
+# COPY models/ ./models/
 
 EXPOSE 8000
 

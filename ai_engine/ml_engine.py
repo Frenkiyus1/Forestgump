@@ -125,6 +125,13 @@ def reload_models() -> ModelRegistry:
     return _registry
 
 
+def is_model_ready() -> bool:
+    """True nếu cả 3 model multi-hazard đã nạp thành công. Dùng bởi
+    app.py (route /assess-risk-ml) để báo trường `mode` cho client biết
+    response vừa trả có thật sự dùng XGBoost hay đã tự fallback rule engine."""
+    return _registry.is_ready
+
+
 def predict_hazard_ml(
     forecast: ForecastInput, terrain: str, hazard: Hazard
 ) -> tuple[AlertLevel, float, dict[AlertLevel, float]]:
