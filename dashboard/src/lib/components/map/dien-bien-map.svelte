@@ -254,7 +254,7 @@
 		{/if}
 	</div>
 
-	<aside class="flex min-h-0 flex-col gap-1">
+	<aside class="flex min-h-0 flex-col gap-1 h-[80vh]">
 		<input
 			type="text"
 			placeholder="Tìm xã/phường…"
