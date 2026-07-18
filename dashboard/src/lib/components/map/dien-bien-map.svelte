@@ -117,8 +117,8 @@
 	}
 </script>
 
-<div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_minmax(0,26rem)]">
-	<div class={clsx(CARD, 'relative w-full overflow-hidden rounded-2xl p-0')} style="height: 36vh;">
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_minmax(0,26rem)]">
+	<div class={clsx(CARD, 'relative w-full overflow-hidden rounded-2xl p-0')} style="height: 80vh;">
 		<div class="relative h-full w-full touch-none select-none">
 			<div
 				class="h-full w-full"
@@ -254,16 +254,16 @@
 		{/if}
 	</div>
 
-	<aside class="flex min-h-0 flex-col gap-3">
+	<aside class="flex min-h-0 flex-col gap-2">
 		<input
 			type="text"
-			placeholder="Tìm theo tên xã/phường…"
+			placeholder="Tìm xã/phường…"
 			autocomplete="off"
 			bind:value={searchQuery}
-			class="w-full shrink-0 rounded-xl border border-[#d0d7e2] px-3 py-2.5 text-sm"
+			class="w-full shrink-0 rounded-lg border border-[#d0d7e2] px-2 py-1.5 text-xs"
 		/>
 
-		<div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-auto">
+		<div class="flex min-h-0 flex-1 flex-col gap-0.5 overflow-auto">
 			{#each filteredRegions as region (region.id)}
 				{@const regionHeat = heat?.get(region.id) ?? null}
 				<button
@@ -286,7 +286,7 @@
 						hidePin();
 					}}
 					class={clsx(
-						'flex items-center gap-2 rounded-xl border-0 px-3 py-2.5 text-left text-sm transition',
+						'flex items-center gap-1.5 rounded-lg border-0 px-2 py-1 text-left text-xs transition',
 						selectedId === region.id
 							? 'bg-[#fef3c7] text-[#92400e]'
 							: 'bg-[#f7f9fc] hover:bg-[#fef3c7] hover:text-[#92400e]'
@@ -294,7 +294,7 @@
 				>
 					{#if regionHeat}
 						<span
-							class="h-2 w-2 shrink-0 rounded-full"
+							class="h-1.5 w-1.5 shrink-0 rounded-full"
 							style="background-color: {ALERT_HEX[regionHeat.alertLevel]}"
 							aria-hidden="true"
 						></span>
@@ -304,8 +304,8 @@
 			{/each}
 		</div>
 
-		<p class="shrink-0 text-xs text-[#667085]">
-			Các vùng bấm được bo theo biên hiển thị trên ảnh. Bấm vào từng vùng để chọn.
+		<p class="shrink-0 text-[10px] text-[#667085]">
+			Bấm vào vùng trên bản đồ hoặc trong danh sách.
 		</p>
 	</aside>
 </div>
