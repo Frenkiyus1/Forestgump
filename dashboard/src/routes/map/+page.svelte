@@ -50,7 +50,7 @@
 	}
 </script>
 
-<svelte:head><title>Map — Điện Biên — SaliGuard</title></svelte:head>
+<svelte:head><title>Map — Điện Biên — ForestGump</title></svelte:head>
 
 <AppShell>
 	<div class="mb-6">
