@@ -7,7 +7,6 @@
 	import logo from '$lib/assets/logo.png';
 	import { getSession, clearSession } from '$lib/auth';
 	import LanguageToggle from './language-toggle.svelte';
-	import VersionSwitcher from './version-switcher.svelte';
 	import ChatWidget from './chat-widget.svelte';
 	import type { Bulletin } from '$lib/types';
 
@@ -205,9 +204,6 @@
 						/>
 					</svg>
 				</button>
-			</div>
-			<div class="mt-3 border-t border-black/[0.04] pt-3">
-				<VersionSwitcher align="left" />
 			</div>
 		</div>
 	</aside>

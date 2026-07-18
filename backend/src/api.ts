@@ -6,12 +6,14 @@ import {
   dienbienForecastQuerySchema,
   bulletinsQuerySchema,
   mockNotifyQuerySchema,
+  chatRequestSchema,
   type HazardRisk,
 } from './schemas.js';
 import { fetchAllLocationsForecast, fetchLocationForecast } from './weather-ingest.js';
 import { DIEN_BIEN_LOCATIONS, findLocationByCode, type DienBienLocation } from './config/locations.js';
 import { assessRisk } from './ai-risk-client.js';
 import { fetchNchmfReference, type NchmfReference } from './nchmf-reference.js';
+import { askGemini, GeminiNotConfiguredError } from './gemini-client.js';
 
 const app = express();
 
@@ -291,6 +293,45 @@ app.get('/api/mock-notify', async (req: Request, res: Response) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[API] /api/mock-notify failed:', message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/chat - hỏi-đáp tự do cho chat widget (Gemini), neo vào dự báo +
+// risk THẬT của cả 3 địa điểm demo (tái dùng buildDienBienForecast()) — model
+// không được bịa số liệu ngoài dữ liệu truyền vào (xem gemini-client.ts).
+// KHÔNG dùng cho bulletin cảnh báo chính thức (xem CLAUDE.md mục 4).
+app.post('/api/chat', async (req: Request, res: Response) => {
+  const parsed = chatRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid body' });
+  }
+
+  try {
+    const forecast = await buildDienBienForecast(DIEN_BIEN_LOCATIONS);
+    const contextJson = JSON.stringify(
+      forecast.map((entry) => ({
+        location: entry.location.name,
+        code: entry.location.code,
+        days: entry.days.map((d) => ({
+          date: d.date,
+          tempMinC: d.tempMinC,
+          tempMaxC: d.tempMaxC,
+          precipitationMm: d.precipitationMm,
+          hazards: d.hazards,
+        })),
+        aiEngineError: entry.aiEngineError,
+      }))
+    );
+    const answer = await askGemini(parsed.data.question, contextJson);
+    res.json({ answer });
+  } catch (err) {
+    if (err instanceof GeminiNotConfiguredError) {
+      res.status(503).json({ error: 'Chat chưa được cấu hình (thiếu GEMINI_API_KEY trên backend)' });
+      return;
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API] /api/chat failed:', message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

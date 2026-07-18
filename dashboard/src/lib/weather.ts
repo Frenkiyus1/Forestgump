@@ -1,20 +1,20 @@
 import type { Forecast } from './types';
-import { MOCK_FORECASTS } from './mock';
-
-const MOCK_DELAY_MS = 500;
+import { fetchDienBienForecast } from './api';
+import { getLocation } from './locations';
+import { entryForLocation, toForecast } from './dienbien-adapter';
 
 /**
- * Fetch the 7-day forecast + current alert for a location.
- *
- * TODO(teammate): real implementation — call the weather/forecast backend
- * (station data → model → threshold pipeline) instead of reading the fixture
- * below. Keep the signature and the `Forecast` shape unchanged so the UI
- * doesn't need to change when this is swapped in.
+ * Fetch the 7-day forecast + current alert for a location — gọi backend
+ * thật qua GET /api/dienbien-forecast (xem dienbien-adapter.ts cho cách
+ * chuyển DienBienForecastEntry -> Forecast).
  */
-export async function getForecast(locationId: string): Promise<Forecast> {
-	await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
+export async function getForecast(
+	locationId: string,
+	fetchFn: typeof fetch = fetch
+): Promise<Forecast> {
+	const location = getLocation(locationId);
+	if (!location) throw new Error(`Unknown location "${locationId}"`);
 
-	const forecast = MOCK_FORECASTS[locationId];
-	if (!forecast) throw new Error(`No forecast fixture for location "${locationId}"`);
-	return forecast;
+	const entries = await fetchDienBienForecast(fetchFn);
+	return toForecast(location, entryForLocation(entries, location));
 }
