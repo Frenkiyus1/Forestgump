@@ -152,12 +152,14 @@
 
 	function select(id: number) {
 		const region = regions.find((r) => r.id === id);
-		if (region && HAZARD_HEATMAP_ANCHOR_NAMES.has(region.name)) {
+		if (!region) return;
+
+		selectedId = id;
+		if (HAZARD_HEATMAP_ANCHOR_NAMES.has(region.name)) {
 			const [cx, cy] = region.centroid;
 			const cxPct = (cx / 926) * 100;
 			const cyPct = (cy / 1178) * 100;
 			zoomingRegionId = id;
-			selectedId = id;
 			zoomStyle = `transform: translate(calc(50% - ${cxPct * ZOOM_SCALE}%), calc(50% - ${cyPct * ZOOM_SCALE}%)) scale(${ZOOM_SCALE}); transform-origin: 0 0; transition: transform ${ZOOM_DURATION_MS}ms ease-in-out;`;
 			setTimeout(() => {
 				onSelect(id);
@@ -165,7 +167,7 @@
 			}, ZOOM_DURATION_MS);
 			return;
 		}
-		selectedId = id;
+
 		onSelect(id);
 	}
 	function showPin(region: DienBienHotspot) {
@@ -218,8 +220,8 @@
 
 <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,26rem)_1fr]">
 	<div
-		class={clsx(CARD, 'relative w-full max-w-[26rem] overflow-hidden p-0')}
-		style="aspect-ratio: 926 / 1178;"
+		class={clsx(CARD, 'relative w-full overflow-hidden rounded-2xl p-0')}
+		style="aspect-ratio: 926 / 1178; min-height: 70vh;"
 	>
 		<div
 			bind:this={mapBoxEl}
