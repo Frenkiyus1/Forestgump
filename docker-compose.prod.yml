@@ -8,7 +8,7 @@
 # Kiến trúc:
 #   Internet --443/80--> caddy --(reverse proxy)--> backend:3000   (HTTPS tự động)
 #   ESP32 ----8883 TLS----> mqtt                                    (MQTT over TLS)
-#   backend --> db:5432, mqtt:1883 (nội bộ), ai_engine:8000 (nội bộ)
+#   backend --> db:5432, mqtt:1883 (nội bộ), ai_engine:8000 (nội bộ), satellite_engine:8010 (nội bộ)
 # DB / AI Engine KHÔNG mở ra ngoài Internet.
 
 services:
@@ -55,6 +55,19 @@ services:
       - ./ai_engine/models:/models:ro
     # Không publish cổng — chỉ backend gọi nội bộ.
 
+  satellite_engine:
+    build: ./satellite_engine
+    container_name: forestgump-satellite
+    restart: unless-stopped
+    environment:
+      SATELLITE_CHECKPOINT: /models/segformer_b0_best.pt
+      # VPS không có Apple MPS -> ép torch chạy CPU.
+      SATELLITE_DEVICE: cpu
+    volumes:
+      # Đặt file model vào ./satellite_engine/models/ trên VPS (nếu chưa có -> model_loaded=false).
+      - ./satellite_engine/models:/models:ro
+    # Không publish cổng — chỉ backend gọi nội bộ.
+
   backend:
     build: ./backend
     container_name: forestgump-backend
@@ -66,6 +79,8 @@ services:
         condition: service_started
       ai_engine:
         condition: service_started
+      satellite_engine:
+        condition: service_started
     environment:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
@@ -74,6 +89,8 @@ services:
       DB_PORT: 5432
       MQTT_URL: mqtt://mqtt:1883 # nội bộ docker, không cần TLS
       AI_ENGINE_URL: http://ai_engine:8000/predict
+      SATELLITE_ENGINE_BASE_URL: http://satellite_engine:8010
+      SATELLITE_ENGINE_TIMEOUT_MS: ${SATELLITE_ENGINE_TIMEOUT_MS:-30000}
       API_PORT: 3000
       REAL_STATION_ID: ${REAL_STATION_ID}
       CORS_ORIGIN: ${CORS_ORIGIN}
