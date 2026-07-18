@@ -45,13 +45,74 @@ TERRAINS: list[Terrain] = ["thung_lung", "nui_cao", "ven_suoi"]
 RANDOM_SEED = 42
 
 
+def sample_scenario(rng: np.random.Generator) -> tuple[ForecastInput, Terrain]:
+    """Sinh 1 kịch bản thời tiết ngẫu nhiên phủ kín không gian đặc trưng.
+
+    DÙNG CHUNG giữa train_xgb.py và eval_xgb.py (eval dùng seed khác) để 2 nơi
+    không lệch phân phối lấy mẫu. Phạm vi chọn để phủ đủ cả 4 band cảnh báo
+    của từng hiểm hoạ (vd. mưa tới 600mm/24h vượt ngưỡng đỏ 400mm; tầm nhìn
+    xuống 10m dưới ngưỡng sương mù dày 50m).
+    """
+    temp_min = float(rng.uniform(-5.0, 32.0))
+    temp_max = temp_min + float(rng.uniform(0.0, 12.0))
+    avg_temp = (temp_min + temp_max) / 2.0
+
+    # 50% mưa nhỏ 0-80mm (phân giải mịn quanh ngưỡng vàng 100mm),
+    # 50% trải 0-600mm để phủ ngưỡng cam 200mm / đỏ 400mm.
+    if rng.random() < 0.5:
+        precipitation = float(rng.uniform(0.0, 80.0))
+    else:
+        precipitation = float(rng.uniform(0.0, 600.0))
+
+    humidity = float(rng.uniform(30.0, 100.0))
+    dew_spread = float(rng.uniform(0.0, 10.0))
+    wind_speed = float(rng.uniform(0.0, 60.0))
+
+    # Nhóm trường hourly có/không CÙNG NHAU (~85% có) — khớp thực tế pipeline:
+    # nguồn Open-Meteo cung cấp đủ, nguồn dự phòng OpenWeatherMap thiếu hết.
+    has_hourly = rng.random() < 0.85
+    if has_hourly:
+        rain_12h = float(rng.uniform(0.3, 0.7) * precipitation)
+        rain_1h = float(rng.uniform(0.1, 0.5) * rain_12h)
+        # 45% mẫu tập trung 10m-2km (phân giải mịn quanh ngưỡng WMO 50m/1000m),
+        # còn lại trải tới 25km (trời quang).
+        if rng.random() < 0.45:
+            visibility = float(rng.uniform(10.0, 2000.0))
+        else:
+            visibility = float(rng.uniform(1000.0, 25000.0))
+        dew_spread_min = float(dew_spread * rng.uniform(0.0, 1.0))
+        humidity_max = float(rng.uniform(humidity, 100.0))
+        wind_gusts = float(wind_speed * rng.uniform(1.0, 2.5))
+        soil_moisture = float(rng.uniform(0.02, 0.55))
+    else:
+        rain_12h = rain_1h = visibility = None
+        dew_spread_min = humidity_max = wind_gusts = soil_moisture = None
+
+    forecast = ForecastInput(
+        date="2026-01-01",
+        temp_min_c=round(temp_min, 2),
+        temp_max_c=round(temp_max, 2),
+        precipitation_mm=round(precipitation, 2),
+        humidity_pct=round(humidity, 2),
+        dew_point_c=round(avg_temp - dew_spread, 2),
+        wind_speed_kmh=round(wind_speed, 2),
+        rain_12h_mm=round(rain_12h, 2) if rain_12h is not None else None,
+        rain_1h_mm=round(rain_1h, 2) if rain_1h is not None else None,
+        visibility_min_m=round(visibility, 1) if visibility is not None else None,
+        dew_spread_min_c=round(dew_spread_min, 2) if dew_spread_min is not None else None,
+        humidity_max_pct=round(humidity_max, 2) if humidity_max is not None else None,
+        wind_gusts_kmh=round(wind_gusts, 2) if wind_gusts is not None else None,
+        soil_moisture_0_1=round(soil_moisture, 3) if soil_moisture is not None else None,
+    )
+    terrain: Terrain = TERRAINS[int(rng.integers(0, len(TERRAINS)))]
+    return forecast, terrain
+
+
 def generate_synthetic_dataset(
     n_samples: int, rng: np.random.Generator
 ) -> tuple[np.ndarray, dict[Hazard, list[str]]]:
-    """Sinh kịch bản thời tiết ngẫu nhiên + gán nhãn bằng rule engine.
-
-    Phạm vi lấy mẫu chọn để phủ đủ cả 4 band cảnh báo của từng hiểm hoạ
-    (vd. mưa lấy mẫu tới 600mm/24h để có đủ mẫu vượt ngưỡng đỏ 400mm).
+    """Sinh kịch bản thời tiết ngẫu nhiên (sample_scenario) + gán nhãn bằng
+    rule engine.
 
     Returns:
         (X [n_samples x len(FEATURE_NAMES)], nhãn alert_level theo hazard).
@@ -59,36 +120,8 @@ def generate_synthetic_dataset(
     features: list[list[float]] = []
     labels: dict[Hazard, list[str]] = {hazard: [] for hazard in HAZARDS}
 
-    for i in range(n_samples):
-        temp_min = float(rng.uniform(-5.0, 32.0))
-        temp_max = temp_min + float(rng.uniform(0.0, 12.0))
-        avg_temp = (temp_min + temp_max) / 2.0
-
-        # 50% mưa nhỏ 0-80mm (phân giải mịn quanh ngưỡng vàng 100mm),
-        # 50% trải 0-600mm để phủ ngưỡng cam 200mm / đỏ 400mm.
-        if rng.random() < 0.5:
-            precipitation = float(rng.uniform(0.0, 80.0))
-        else:
-            precipitation = float(rng.uniform(0.0, 600.0))
-
-        # rain_12h chỉ có ở ~50% mẫu, giống thực tế pipeline Phase 1 chưa
-        # luôn cung cấp — để model học cách xử lý missing.
-        rain_12h = (
-            float(rng.uniform(0.3, 0.7) * precipitation) if rng.random() < 0.5 else None
-        )
-
-        dew_spread = float(rng.uniform(0.0, 10.0))
-        forecast = ForecastInput(
-            date="2026-01-01",
-            temp_min_c=round(temp_min, 2),
-            temp_max_c=round(temp_max, 2),
-            precipitation_mm=round(precipitation, 2),
-            humidity_pct=round(float(rng.uniform(30.0, 100.0)), 2),
-            dew_point_c=round(avg_temp - dew_spread, 2),
-            wind_speed_kmh=round(float(rng.uniform(0.0, 60.0)), 2),
-            rain_12h_mm=round(rain_12h, 2) if rain_12h is not None else None,
-        )
-        terrain: Terrain = TERRAINS[int(rng.integers(0, len(TERRAINS)))]
+    for _ in range(n_samples):
+        forecast, terrain = sample_scenario(rng)
         location = LocationInput(
             code="synthetic", name="Synthetic", elevation_m=500.0, terrain=terrain
         )
@@ -119,18 +152,29 @@ def train_hazard_model(
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=RANDOM_SEED, stratify=y
     )
+    # Tách thêm tập validation từ tập train cho early stopping — tập test giữ
+    # nguyên chỉ dùng đánh giá cuối, tránh rò rỉ vào quá trình chọn số cây.
+    X_fit, X_val, y_fit, y_val = train_test_split(
+        X_train, y_train, test_size=0.1, random_state=RANDOM_SEED, stratify=y_train
+    )
 
+    # Nhiều cây + learning rate thấp hơn bản cũ, bù bằng early stopping trên
+    # tập validation -> ranh giới ngưỡng sắc nét hơn mà không overfit.
     model = xgb.XGBClassifier(
-        n_estimators=300,
-        max_depth=6,
-        learning_rate=0.1,
+        n_estimators=800,
+        max_depth=7,
+        learning_rate=0.07,
+        subsample=0.9,
+        colsample_bytree=0.9,
         objective="multi:softprob",
         num_class=len(classes),
         tree_method="hist",
+        eval_metric="mlogloss",
+        early_stopping_rounds=40,
         random_state=RANDOM_SEED,
         n_jobs=-1,
     )
-    model.fit(X_train, y_train)
+    model.fit(X_fit, y_fit, eval_set=[(X_val, y_val)], verbose=False)
 
     y_pred = model.predict(X_test)
     accuracy = float(accuracy_score(y_test, y_pred))
@@ -141,7 +185,7 @@ def train_hazard_model(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train XGBoost cho AI Engine Forestgump")
-    parser.add_argument("--samples", type=int, default=40000, help="số mẫu tổng hợp")
+    parser.add_argument("--samples", type=int, default=60000, help="số mẫu tổng hợp")
     parser.add_argument("--out", type=str, default="models", help="thư mục lưu model")
     args = parser.parse_args()
 
