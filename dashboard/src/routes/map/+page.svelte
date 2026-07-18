@@ -58,10 +58,6 @@
 	{/if}
 
 	<div class="mb-4 flex flex-col gap-3">
-		<p class="text-sm text-gray-500">
-			Bấm vào 1 trong 3 địa điểm có dữ liệu đo thật để xem chi tiết.
-		</p>
-
 		<div class="flex flex-wrap items-center gap-2">
 			{#each HAZARDS as hazard (hazard)}
 				<button
