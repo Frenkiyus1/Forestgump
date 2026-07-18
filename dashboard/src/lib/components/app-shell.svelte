@@ -263,6 +263,10 @@
 	</div>
 </div>
 
+<footer class="border-t border-black/[0.04] bg-cream px-6 py-4 text-center text-xs text-gray-400">
+	ForestGump — Hệ thống cảnh báo sớm thiên tai Điện Biên
+</footer>
+
 {#if !hideChat}
 	<ChatWidget />
 {/if}

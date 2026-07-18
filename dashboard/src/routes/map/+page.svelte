@@ -45,7 +45,7 @@
 
 <svelte:head><title>Map — Điện Biên — ForestGump</title></svelte:head>
 
-<AppShell compact={true} noHeader={true} hideChat={true}>
+<AppShell compact={true} noHeader={true}>
 	{#if data.apiError}
 		<div
 			class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
