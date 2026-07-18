@@ -25,7 +25,14 @@
 
 	let hoveredId = $state<number | null>(null);
 	let selectedId = $state<number | null>(null);
+	let searchQuery = $state('');
 	let pinPos = $state<{ x: number; y: number } | null>(null);
+
+	const filteredRegions = $derived(
+		searchQuery
+			? regions.filter((r) => r.name.toLowerCase().includes(searchQuery.toLowerCase()))
+			: regions
+	);
 
 	const selectedRegion = $derived(regions.find((r) => r.id === selectedId) ?? null);
 	const pinRegionId = $derived(hoveredId ?? selectedId);
@@ -110,140 +117,197 @@
 	}
 </script>
 
-<div class={clsx(CARD, 'relative w-full overflow-hidden rounded-2xl p-0')} style="min-height: 80vh;">
-	<div class="relative h-full w-full touch-none select-none">
-		<div
-			class="h-full w-full"
-			style={zoomingRegionId
-				? zoomStyle
-				: ''}
-		>
-			<img
-				src="/dienbien-map.png"
-				alt="Bản đồ Điện Biên"
-				class="pointer-events-none block h-full w-full object-contain select-none"
-				draggable="false"
-			/>
-			<svg
-				viewBox={MAP_VIEWBOX}
-				preserveAspectRatio="xMidYMid meet"
-				class="absolute inset-0 h-full w-full"
-				role="group"
-				aria-label="Bản đồ tương tác Điện Biên"
+<div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_minmax(0,26rem)]">
+	<div class={clsx(CARD, 'relative w-full overflow-hidden rounded-2xl p-0')} style="min-height: 75vh;">
+		<div class="relative h-full w-full touch-none select-none">
+			<div
+				class="h-full w-full"
+				style={zoomingRegionId
+					? zoomStyle
+					: ''}
 			>
-				{#each regions as region (region.id)}
-					{@const isActive = hoveredId === region.id || selectedId === region.id}
-					{@const style = regionStyle(region, isActive)}
-					<path
-						d={region.path}
-						class="cursor-pointer outline-none transition-colors duration-150"
-						fill={style.fill}
-						stroke={style.stroke}
-						stroke-width={style.strokeWidth}
-						stroke-dasharray={style.dashed ? '4 3' : undefined}
-						vector-effect="non-scaling-stroke"
-						role="button"
-						tabindex="0"
-						aria-label={region.name}
-						onclick={() => select(region.id)}
-						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								select(region.id);
-							}
-						}}
-						onmouseenter={() => {
-							hoverRegion(region.id);
-							showPin(region);
-						}}
-						onmouseleave={() => {
-							hoverRegion(null);
-							hidePin();
-						}}
-						onfocus={() => {
-							hoverRegion(region.id);
-							showPin(region);
-						}}
-						onblur={() => {
-							hoverRegion(null);
-							hidePin();
-						}}
-					/>
-				{/each}
-			</svg>
-
-			{#if pinPos && pinRegion}
-				<div
-					class="pointer-events-none absolute z-10"
-					style="left: {(pinPos.x / 926) * 100}%; top: {(pinPos.y / 1178) * 100}%;"
+				<img
+					src="/dienbien-map.png"
+					alt="Bản đồ Điện Biên"
+					class="pointer-events-none block h-full w-full object-contain select-none"
+					draggable="false"
+				/>
+				<svg
+					viewBox={MAP_VIEWBOX}
+					preserveAspectRatio="xMidYMid meet"
+					class="absolute inset-0 h-full w-full"
+					role="group"
+					aria-label="Bản đồ tương tác Điện Biên"
 				>
+					{#each regions as region (region.id)}
+						{@const isActive = hoveredId === region.id || selectedId === region.id}
+						{@const style = regionStyle(region, isActive)}
+						<path
+							d={region.path}
+							class="cursor-pointer outline-none transition-colors duration-150"
+							fill={style.fill}
+							stroke={style.stroke}
+							stroke-width={style.strokeWidth}
+							stroke-dasharray={style.dashed ? '4 3' : undefined}
+							vector-effect="non-scaling-stroke"
+							role="button"
+							tabindex="0"
+							aria-label={region.name}
+							onclick={() => select(region.id)}
+							onkeydown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') {
+									e.preventDefault();
+									select(region.id);
+								}
+							}}
+							onmouseenter={() => {
+								hoverRegion(region.id);
+								showPin(region);
+							}}
+							onmouseleave={() => {
+								hoverRegion(null);
+								hidePin();
+							}}
+							onfocus={() => {
+								hoverRegion(region.id);
+								showPin(region);
+							}}
+							onblur={() => {
+								hoverRegion(null);
+								hidePin();
+							}}
+						/>
+					{/each}
+				</svg>
+
+				{#if pinPos && pinRegion}
 					<div
-						class="min-w-[160px] max-w-[260px] rounded-xl bg-[rgba(17,24,39,0.92)] px-3 py-2 text-sm text-white shadow-xl"
+						class="pointer-events-none absolute z-10"
+						style="left: {(pinPos.x / 926) * 100}%; top: {(pinPos.y / 1178) * 100}%;"
 					>
-						<small class="block text-amber-200">Đơn vị số {pinRegion.id}</small>
-						<strong class="block text-white">{pinRegion.name}</strong>
-						{#if pinHeat}
-							<div class="mt-1.5 flex items-center gap-1.5">
-								<span
-									class="h-2 w-2 shrink-0 rounded-full"
-									style="background-color: {ALERT_HEX[pinHeat.alertLevel]}"
-									aria-hidden="true"
-								></span>
-								<span class="text-xs font-semibold">{ALERT_LABEL[pinHeat.alertLevel]}</span>
-							</div>
-							{#if pinHeat.isAnchor}
-								<p class="mt-1 text-[11px] text-emerald-300">● Dữ liệu đo thật</p>
-							{:else}
-								<p class="mt-1 text-[11px] text-white/60">
-									○ Ước tính theo vùng địa hình{pinHeat.confidence === 'low'
-										? ' (độ tin cậy thấp)'
-										: ''}
-								</p>
+						<div
+							class="min-w-[160px] max-w-[260px] rounded-xl bg-[rgba(17,24,39,0.92)] px-3 py-2 text-sm text-white shadow-xl"
+						>
+							<small class="block text-amber-200">Đơn vị số {pinRegion.id}</small>
+							<strong class="block text-white">{pinRegion.name}</strong>
+							{#if pinHeat}
+								<div class="mt-1.5 flex items-center gap-1.5">
+									<span
+										class="h-2 w-2 shrink-0 rounded-full"
+										style="background-color: {ALERT_HEX[pinHeat.alertLevel]}"
+										aria-hidden="true"
+									></span>
+									<span class="text-xs font-semibold">{ALERT_LABEL[pinHeat.alertLevel]}</span>
+								</div>
+								{#if pinHeat.isAnchor}
+									<p class="mt-1 text-[11px] text-emerald-300">● Dữ liệu đo thật</p>
+								{:else}
+									<p class="mt-1 text-[11px] text-white/60">
+										○ Ước tính theo vùng địa hình{pinHeat.confidence === 'low'
+											? ' (độ tin cậy thấp)'
+											: ''}
+									</p>
+								{/if}
+								{#if pinHeat.weather}
+									<dl
+										class="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-white/15 pt-1.5 text-[11px] text-white/85"
+									>
+										<dt class="text-white/50">Nhiệt độ</dt>
+										<dd>{pinHeat.weather.tempMinC}–{pinHeat.weather.tempMaxC}°C</dd>
+										<dt class="text-white/50">Mưa</dt>
+										<dd>{pinHeat.weather.precipitationMm} mm</dd>
+										<dt class="text-white/50">Độ ẩm</dt>
+										<dd>{pinHeat.weather.humidityPct}%</dd>
+										<dt class="text-white/50">Gió</dt>
+										<dd>{pinHeat.weather.windSpeedKmh} km/h</dd>
+									</dl>
+								{/if}
 							{/if}
-							{#if pinHeat.weather}
-								<dl
-									class="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-white/15 pt-1.5 text-[11px] text-white/85"
-								>
-									<dt class="text-white/50">Nhiệt độ</dt>
-									<dd>{pinHeat.weather.tempMinC}–{pinHeat.weather.tempMaxC}°C</dd>
-									<dt class="text-white/50">Mưa</dt>
-									<dd>{pinHeat.weather.precipitationMm} mm</dd>
-									<dt class="text-white/50">Độ ẩm</dt>
-									<dd>{pinHeat.weather.humidityPct}%</dd>
-									<dt class="text-white/50">Gió</dt>
-									<dd>{pinHeat.weather.windSpeedKmh} km/h</dd>
-								</dl>
-							{/if}
-						{/if}
+						</div>
 					</div>
-				</div>
-			{/if}
+				{/if}
+			</div>
 		</div>
+
+		{#if heat}
+			<div
+				class="pointer-events-none absolute right-3 bottom-3 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[11px] shadow-lg"
+			>
+				<p class="mb-1.5 font-semibold text-gray-700">Chú giải</p>
+				<div class="flex flex-col gap-1">
+					{#each ['green', 'yellow', 'orange', 'red'] as const as level (level)}
+						<div class="flex items-center gap-1.5">
+							<span
+								class="h-2.5 w-2.5 rounded-full"
+								style="background-color: {ALERT_HEX[level]}"
+								aria-hidden="true"
+							></span>
+							<span class="text-gray-600">{ALERT_LABEL[level]}</span>
+						</div>
+					{/each}
+				</div>
+				<div class="mt-2 border-t border-gray-200 pt-1.5 text-gray-500">
+					<p>━ Viền đậm = đo thật</p>
+					<p>┄ Viền đứt = ước tính, tin cậy thấp</p>
+				</div>
+			</div>
+		{/if}
 	</div>
 
-	{#if heat}
-		<div
-			class="pointer-events-none absolute right-3 bottom-3 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[11px] shadow-lg"
-		>
-			<p class="mb-1.5 font-semibold text-gray-700">Chú giải</p>
-			<div class="flex flex-col gap-1">
-				{#each ['green', 'yellow', 'orange', 'red'] as const as level (level)}
-					<div class="flex items-center gap-1.5">
+	<aside class="flex min-h-0 flex-col gap-3">
+		<input
+			type="text"
+			placeholder="Tìm theo tên xã/phường…"
+			autocomplete="off"
+			bind:value={searchQuery}
+			class="w-full shrink-0 rounded-xl border border-[#d0d7e2] px-3 py-2.5 text-sm"
+		/>
+
+		<div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-auto">
+			{#each filteredRegions as region (region.id)}
+				{@const regionHeat = heat?.get(region.id) ?? null}
+				<button
+					type="button"
+					onclick={() => select(region.id)}
+					onmouseenter={() => {
+						hoverRegion(region.id);
+						showPin(region);
+					}}
+					onmouseleave={() => {
+						hoverRegion(null);
+						hidePin();
+					}}
+					onfocus={() => {
+						hoverRegion(region.id);
+						showPin(region);
+					}}
+					onblur={() => {
+						hoverRegion(null);
+						hidePin();
+					}}
+					class={clsx(
+						'flex items-center gap-2 rounded-xl border-0 px-3 py-2.5 text-left text-sm transition',
+						selectedId === region.id
+							? 'bg-[#fef3c7] text-[#92400e]'
+							: 'bg-[#f7f9fc] hover:bg-[#fef3c7] hover:text-[#92400e]'
+					)}
+				>
+					{#if regionHeat}
 						<span
-							class="h-2.5 w-2.5 rounded-full"
-							style="background-color: {ALERT_HEX[level]}"
+							class="h-2 w-2 shrink-0 rounded-full"
+							style="background-color: {ALERT_HEX[regionHeat.alertLevel]}"
 							aria-hidden="true"
 						></span>
-						<span class="text-gray-600">{ALERT_LABEL[level]}</span>
-					</div>
-				{/each}
-			</div>
-			<div class="mt-2 border-t border-gray-200 pt-1.5 text-gray-500">
-				<p>━ Viền đậm = đo thật</p>
-				<p>┄ Viền đứt = ước tính, tin cậy thấp</p>
-			</div>
+					{/if}
+					<span>{region.id}. {region.name}</span>
+				</button>
+			{/each}
 		</div>
-	{/if}
+
+		<p class="shrink-0 text-xs text-[#667085]">
+			Các vùng bấm được bo theo biên hiển thị trên ảnh. Bấm vào từng vùng để chọn.
+		</p>
+	</aside>
 </div>
 
 {#if selectedAnchorEntry}
