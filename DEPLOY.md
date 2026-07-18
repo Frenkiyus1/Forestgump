@@ -116,3 +116,69 @@ Dashboard đã dùng `@sveltejs/adapter-cloudflare` nên deploy thẳng lên Pag
 - **Cập nhật code**: `git pull && docker compose -f docker-compose.prod.yml up -d --build`
 - **Bí mật KHÔNG commit**: `.env` (đã có trong `.gitignore`).
 - Không có DB để backup/migrate — pipeline không lưu trạng thái.
+
+---
+
+## E. (Thay thế A+B) Tự host tại nhà bằng Cloudflare Tunnel
+
+Dùng máy cá nhân/server tại nhà thay VPS. Hầu hết mạng gia đình VN dùng
+**CGNAT** (không có IP public) nên cách Caddy mở cổng 80/443 ở phần A-B
+**không hoạt động được** — Cloudflare Tunnel giải quyết việc này: máy nhà
+chỉ cần kết nối **outbound** ra Cloudflare, không cần mở port trên
+router/modem, không cần IP tĩnh.
+
+### E.1 Cài Docker trên máy tự host
+Cài Docker Desktop (Windows/Mac) hoặc Docker Engine (Linux) như bình thường.
+
+### E.2 Tạo Tunnel trên Cloudflare
+1. Vào **Cloudflare Zero Trust dashboard** → **Networks** → **Tunnels** →
+   **Create a tunnel** → chọn **Cloudflared** → đặt tên (vd `forestgump-api`).
+2. Ở bước **Install and run a connector**, chọn tab **Docker** → copy đoạn
+   token dài trong lệnh mẫu (`cloudflared service install <TOKEN>` — chỉ lấy
+   phần `<TOKEN>`) → dán vào `CLOUDFLARE_TUNNEL_TOKEN` trong `.env`.
+3. Bấm **Next** → mục **Public Hostname**, khai báo:
+   | Trường | Giá trị |
+   |---|---|
+   | Subdomain | `api` |
+   | Domain | domain bạn đã thêm vào Cloudflare (xem lưu ý bên dưới) |
+   | Service Type | `HTTP` |
+   | URL | `backend:3000` |
+4. Save.
+
+> **Cần domain riêng đã add vào Cloudflare** (mua ở đâu cũng được, chỉ cần
+> trỏ nameserver về Cloudflare — miễn phí). `*.pages.dev`/`*.workers.dev`
+> không dùng được cho bước này vì đó là domain Cloudflare quản lý, không
+> phải zone của bạn.
+>
+> **Muốn test ngay hôm nay, chưa có domain?** Dùng Quick Tunnel (tạm thời,
+> URL đổi mỗi lần chạy lại — không dùng cho lâu dài):
+> ```bash
+> docker run --rm cloudflare/cloudflared:latest tunnel --url http://<IP-máy-nhà>:3000
+> ```
+> Cloudflare trả về 1 URL `https://xxxx.trycloudflare.com` — dùng tạm làm
+> `PUBLIC_API_URL` để kiểm tra dashboard chạy được, rồi chuyển sang Named
+> Tunnel (E.2) khi có domain.
+
+### E.3 Tạo `.env` và khởi động
+```bash
+cp .env.prod.example .env
+nano .env    # điền CORS_ORIGIN, CLOUDFLARE_TUNNEL_TOKEN, OPENWEATHERMAP_API_KEY
+
+docker compose -f docker-compose.selfhost.yml up -d --build
+docker compose -f docker-compose.selfhost.yml logs -f cloudflared   # chờ dòng "Registered tunnel connection"
+```
+
+### E.4 Kiểm tra
+```bash
+curl https://api.<domain-của-bạn>/health
+curl https://api.<domain-của-bạn>/api/dienbien-forecast
+```
+Rồi set `PUBLIC_API_URL = https://api.<domain-của-bạn>` trên Cloudflare
+Pages (Settings → Environment variables) như phần C.3, retry deployment.
+
+### E.5 Lưu ý khi tự host
+- Máy phải bật 24/7 — mất điện/rớt mạng nhà = API chết. Chỉ phù hợp demo/thử
+  nghiệm, không phù hợp hệ thống cảnh báo cần độ tin cậy cao trong thực tế.
+- Không cần mở port trên router, không cần Caddy/Let's Encrypt — Cloudflare
+  Tunnel tự lo HTTPS.
+- **Cập nhật code**: `git pull && docker compose -f docker-compose.selfhost.yml up -d --build`
