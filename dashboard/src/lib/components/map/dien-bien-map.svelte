@@ -40,6 +40,92 @@
 	let searchQuery = $state('');
 	let pinPos = $state<{ x: number; y: number } | null>(null);
 
+	// --- pan / zoom -----------------------------------------------------
+	const MIN_SCALE = 1;
+	const MAX_SCALE = 4;
+	let scale = $state(1);
+	let panX = $state(0);
+	let panY = $state(0);
+	let isPanning = $state(false);
+	let dragMoved = false;
+	let suppressClick = false;
+	let dragStart = { x: 0, y: 0, panX: 0, panY: 0 };
+	let mapBoxEl = $state<HTMLDivElement | undefined>(undefined);
+
+	function clampPan(x: number, y: number, s: number) {
+		if (!mapBoxEl) return { x, y };
+		const { width, height } = mapBoxEl.getBoundingClientRect();
+		const scaledW = width * s;
+		const scaledH = height * s;
+		const minX = Math.min(0, width - scaledW);
+		const minY = Math.min(0, height - scaledH);
+		return { x: Math.min(0, Math.max(minX, x)), y: Math.min(0, Math.max(minY, y)) };
+	}
+
+	function zoomAt(cx: number, cy: number, factor: number) {
+		const nextScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * factor));
+		if (nextScale === scale) return;
+		const imgX = (cx - panX) / scale;
+		const imgY = (cy - panY) / scale;
+		const nextPanX = cx - imgX * nextScale;
+		const nextPanY = cy - imgY * nextScale;
+		const clamped = clampPan(nextPanX, nextPanY, nextScale);
+		scale = nextScale;
+		panX = clamped.x;
+		panY = clamped.y;
+	}
+
+	function onWheel(e: WheelEvent) {
+		e.preventDefault();
+		if (!mapBoxEl) return;
+		const rect = mapBoxEl.getBoundingClientRect();
+		zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+	}
+
+	function zoomButton(factor: number) {
+		if (!mapBoxEl) return;
+		const rect = mapBoxEl.getBoundingClientRect();
+		zoomAt(rect.width / 2, rect.height / 2, factor);
+	}
+
+	function resetView() {
+		scale = 1;
+		panX = 0;
+		panY = 0;
+	}
+
+	function onPointerDown(e: PointerEvent) {
+		if (e.button !== 0) return;
+		isPanning = true;
+		dragMoved = false;
+		dragStart = { x: e.clientX, y: e.clientY, panX, panY };
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+	}
+	function onPointerMove(e: PointerEvent) {
+		if (!isPanning) return;
+		const dx = e.clientX - dragStart.x;
+		const dy = e.clientY - dragStart.y;
+		if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved = true;
+		if (!dragMoved) return;
+		const clamped = clampPan(dragStart.panX + dx, dragStart.panY + dy, scale);
+		panX = clamped.x;
+		panY = clamped.y;
+	}
+	function onPointerUp() {
+		if (isPanning && dragMoved) {
+			suppressClick = true;
+			setTimeout(() => (suppressClick = false), 0);
+		}
+		isPanning = false;
+	}
+	function onClickCapture(e: MouseEvent) {
+		if (suppressClick) {
+			e.stopPropagation();
+			e.preventDefault();
+		}
+	}
+	// ---------------------------------------------------------------------
+
 	const filteredRegions = $derived(
 		searchQuery
 			? regions.filter((r) => r.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -130,141 +216,197 @@
 	}
 </script>
 
-<div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_minmax(0,14rem)]">
-	<div class={clsx(CARD, 'relative overflow-hidden p-0')}>
-		<div class="relative" style={zoomingRegionId ? zoomStyle : ''}>
-			<img
-				src="/dienbien-map.png"
-				alt="Bản đồ Điện Biên"
-				class="block h-auto w-full select-none"
-				draggable="false"
-			/>
-			<svg
-				viewBox={MAP_VIEWBOX}
-				class="absolute inset-0 h-full w-full"
-				role="group"
-				aria-label="Bản đồ tương tác Điện Biên"
+<div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,26rem)_1fr]">
+	<div
+		class={clsx(CARD, 'relative w-full max-w-[26rem] overflow-hidden p-0')}
+		style="aspect-ratio: 926 / 1178;"
+	>
+		<div
+			bind:this={mapBoxEl}
+			class="absolute inset-0 touch-none overscroll-contain select-none"
+			style="cursor: {isPanning ? 'grabbing' : 'grab'}"
+			role="presentation"
+			onwheel={onWheel}
+			onpointerdown={onPointerDown}
+			onpointermove={onPointerMove}
+			onpointerup={onPointerUp}
+			onpointercancel={onPointerUp}
+			onclickcapture={onClickCapture}
+		>
+			<div
+				class="absolute top-0 left-0 h-full w-full"
+				style={zoomingRegionId
+					? zoomStyle
+					: `transform: translate(${panX}px, ${panY}px) scale(${scale}); transform-origin: 0 0;`}
 			>
-				{#each regions as region (region.id)}
-					{@const isActive = hoveredId === region.id || selectedId === region.id}
-					{@const style = regionStyle(region, isActive)}
-					<path
-						d={region.path}
-						class="cursor-pointer outline-none transition-colors duration-150"
-						fill={style.fill}
-						stroke={style.stroke}
-						stroke-width={style.strokeWidth}
-						stroke-dasharray={style.dashed ? '4 3' : undefined}
-						vector-effect="non-scaling-stroke"
-						role="button"
-						tabindex="0"
-						aria-label={region.name}
-						onclick={() => select(region.id)}
-						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								select(region.id);
-							}
-						}}
-						onmouseenter={() => {
-							hoverRegion(region.id);
-							showPin(region);
-						}}
-						onmouseleave={() => {
-							hoverRegion(null);
-							hidePin();
-						}}
-						onfocus={() => {
-							hoverRegion(region.id);
-							showPin(region);
-						}}
-						onblur={() => {
-							hoverRegion(null);
-							hidePin();
-						}}
-					/>
-				{/each}
-			</svg>
-
-			{#if pinPos && pinRegion}
-				<div
-					class="pointer-events-none absolute z-10 min-w-[160px] max-w-[260px] rounded-xl bg-[rgba(17,24,39,0.92)] px-3 py-2 text-sm text-white shadow-xl"
-					style="left: {(pinPos.x / 926) * 100}%; top: {(pinPos.y / 1178) *
-						100}%; transform: translate(-50%, -120%)"
+				<img
+					src="/dienbien-map.png"
+					alt="Bản đồ Điện Biên"
+					class="pointer-events-none block h-full w-full object-contain select-none"
+					draggable="false"
+				/>
+				<svg
+					viewBox={MAP_VIEWBOX}
+					preserveAspectRatio="xMidYMid meet"
+					class="absolute inset-0 h-full w-full"
+					role="group"
+					aria-label="Bản đồ tương tác Điện Biên"
 				>
-					<small class="block text-amber-200">Đơn vị số {pinRegion.id}</small>
-					<strong class="block text-white">{pinRegion.name}</strong>
-					{#if pinHeat}
-						<div class="mt-1.5 flex items-center gap-1.5">
+					{#each regions as region (region.id)}
+						{@const isActive = hoveredId === region.id || selectedId === region.id}
+						{@const style = regionStyle(region, isActive)}
+						<path
+							d={region.path}
+							class="cursor-pointer outline-none transition-colors duration-150"
+							fill={style.fill}
+							stroke={style.stroke}
+							stroke-width={style.strokeWidth}
+							stroke-dasharray={style.dashed ? '4 3' : undefined}
+							vector-effect="non-scaling-stroke"
+							role="button"
+							tabindex="0"
+							aria-label={region.name}
+							onclick={() => select(region.id)}
+							onkeydown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') {
+									e.preventDefault();
+									select(region.id);
+								}
+							}}
+							onmouseenter={() => {
+								hoverRegion(region.id);
+								showPin(region);
+							}}
+							onmouseleave={() => {
+								hoverRegion(null);
+								hidePin();
+							}}
+							onfocus={() => {
+								hoverRegion(region.id);
+								showPin(region);
+							}}
+							onblur={() => {
+								hoverRegion(null);
+								hidePin();
+							}}
+						/>
+					{/each}
+				</svg>
+
+				{#if pinPos && pinRegion}
+					<div
+						class="pointer-events-none absolute z-10"
+						style="left: {(pinPos.x / 926) * 100}%; top: {(pinPos.y / 1178) * 100}%;"
+					>
+						<div
+							class="min-w-[160px] max-w-[260px] rounded-xl bg-[rgba(17,24,39,0.92)] px-3 py-2 text-sm text-white shadow-xl"
+							style="transform: translate(-50%, -120%) scale({1 / scale}); transform-origin: 50% 100%;"
+						>
+							<small class="block text-amber-200">Đơn vị số {pinRegion.id}</small>
+							<strong class="block text-white">{pinRegion.name}</strong>
+							{#if pinHeat}
+								<div class="mt-1.5 flex items-center gap-1.5">
+									<span
+										class="h-2 w-2 shrink-0 rounded-full"
+										style="background-color: {ALERT_HEX[pinHeat.alertLevel]}"
+										aria-hidden="true"
+									></span>
+									<span class="text-xs font-semibold">{ALERT_LABEL[pinHeat.alertLevel]}</span>
+								</div>
+								{#if pinHeat.isAnchor}
+									<p class="mt-1 text-[11px] text-emerald-300">● Dữ liệu đo thật</p>
+								{:else}
+									<p class="mt-1 text-[11px] text-white/60">
+										○ Ước tính theo vùng địa hình{pinHeat.confidence === 'low'
+											? ' (độ tin cậy thấp)'
+											: ''}
+									</p>
+								{/if}
+								{#if pinHeat.weather}
+									<dl
+										class="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-white/15 pt-1.5 text-[11px] text-white/85"
+									>
+										<dt class="text-white/50">Nhiệt độ</dt>
+										<dd>{pinHeat.weather.tempMinC}–{pinHeat.weather.tempMaxC}°C</dd>
+										<dt class="text-white/50">Mưa</dt>
+										<dd>{pinHeat.weather.precipitationMm} mm</dd>
+										<dt class="text-white/50">Độ ẩm</dt>
+										<dd>{pinHeat.weather.humidityPct}%</dd>
+										<dt class="text-white/50">Gió</dt>
+										<dd>{pinHeat.weather.windSpeedKmh} km/h</dd>
+									</dl>
+								{/if}
+							{/if}
+						</div>
+					</div>
+				{/if}
+			</div>
+		</div>
+
+		<!-- zoom controls — fixed to the frame, not affected by pan -->
+		<div
+			class="pointer-events-none absolute top-3 right-3 z-20 flex flex-col gap-1 rounded-xl bg-[rgba(255,255,255,0.92)] p-1 shadow-lg"
+		>
+			<button
+				type="button"
+				class="pointer-events-auto grid h-8 w-8 place-items-center rounded-lg text-lg leading-none text-gray-600 hover:bg-gray-100"
+				aria-label="Phóng to"
+				onclick={() => zoomButton(1.35)}
+			>
+				+
+			</button>
+			<button
+				type="button"
+				class="pointer-events-auto grid h-8 w-8 place-items-center rounded-lg text-lg leading-none text-gray-600 hover:bg-gray-100"
+				aria-label="Thu nhỏ"
+				onclick={() => zoomButton(1 / 1.35)}
+			>
+				−
+			</button>
+			<button
+				type="button"
+				class="pointer-events-auto grid h-8 w-8 place-items-center rounded-lg text-[10px] font-semibold text-gray-600 hover:bg-gray-100"
+				aria-label="Đặt lại vị trí bản đồ"
+				onclick={resetView}
+			>
+				1:1
+			</button>
+		</div>
+
+		{#if heat}
+			<div
+				class="pointer-events-none absolute right-3 bottom-3 z-20 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[11px] shadow-lg"
+			>
+				<p class="mb-1.5 font-semibold text-gray-700">Chú giải</p>
+				<div class="flex flex-col gap-1">
+					{#each ['green', 'yellow', 'orange', 'red'] as const as level (level)}
+						<div class="flex items-center gap-1.5">
 							<span
-								class="h-2 w-2 shrink-0 rounded-full"
-								style="background-color: {ALERT_HEX[pinHeat.alertLevel]}"
+								class="h-2.5 w-2.5 rounded-full"
+								style="background-color: {ALERT_HEX[level]}"
 								aria-hidden="true"
 							></span>
-							<span class="text-xs font-semibold">{ALERT_LABEL[pinHeat.alertLevel]}</span>
+							<span class="text-gray-600">{ALERT_LABEL[level]}</span>
 						</div>
-						{#if pinHeat.isAnchor}
-							<p class="mt-1 text-[11px] text-emerald-300">● Dữ liệu đo thật</p>
-						{:else}
-							<p class="mt-1 text-[11px] text-white/60">
-								○ Ước tính theo vùng địa hình{pinHeat.confidence === 'low'
-									? ' (độ tin cậy thấp)'
-									: ''}
-							</p>
-						{/if}
-						{#if pinHeat.weather}
-							<dl
-								class="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 border-t border-white/15 pt-1.5 text-[11px] text-white/85"
-							>
-								<dt class="text-white/50">Nhiệt độ</dt>
-								<dd>{pinHeat.weather.tempMinC}–{pinHeat.weather.tempMaxC}°C</dd>
-								<dt class="text-white/50">Mưa</dt>
-								<dd>{pinHeat.weather.precipitationMm} mm</dd>
-								<dt class="text-white/50">Độ ẩm</dt>
-								<dd>{pinHeat.weather.humidityPct}%</dd>
-								<dt class="text-white/50">Gió</dt>
-								<dd>{pinHeat.weather.windSpeedKmh} km/h</dd>
-							</dl>
-						{/if}
-					{/if}
+					{/each}
 				</div>
-			{/if}
-
-			{#if heat}
-				<div
-					class="absolute right-3 bottom-3 rounded-xl bg-[rgba(255,255,255,0.92)] px-3 py-2 text-[11px] shadow-lg"
-				>
-					<p class="mb-1.5 font-semibold text-gray-700">Chú giải</p>
-					<div class="flex flex-col gap-1">
-						{#each ['green', 'yellow', 'orange', 'red'] as const as level (level)}
-							<div class="flex items-center gap-1.5">
-								<span
-									class="h-2.5 w-2.5 rounded-full"
-									style="background-color: {ALERT_HEX[level]}"
-									aria-hidden="true"
-								></span>
-								<span class="text-gray-600">{ALERT_LABEL[level]}</span>
-							</div>
-						{/each}
-					</div>
-					<div class="mt-2 border-t border-gray-200 pt-1.5 text-gray-500">
-						<p>━ Viền đậm = đo thật</p>
-						<p>┄ Viền đứt = ước tính, tin cậy thấp</p>
-					</div>
+				<div class="mt-2 border-t border-gray-200 pt-1.5 text-gray-500">
+					<p>━ Viền đậm = đo thật</p>
+					<p>┄ Viền đứt = ước tính, tin cậy thấp</p>
 				</div>
-			{:else}
-				<div
-					class="absolute bottom-3 left-3 rounded-full bg-[#fef3c7] px-3 py-1 text-xs font-bold text-[#92400e]"
-				>
-					Bản đồ bấm theo từng vùng
-				</div>
-			{/if}
-		</div>
+			</div>
+		{:else}
+			<div
+				class="pointer-events-none absolute bottom-3 left-3 z-20 rounded-full bg-[#fef3c7] px-3 py-1 text-xs font-bold text-[#92400e]"
+			>
+				Cuộn hoặc kéo để phóng to / di chuyển
+			</div>
+		{/if}
 	</div>
 
-	<aside class="flex flex-col gap-3">
+	<aside class="flex min-h-0 flex-col gap-3 lg:max-h-[33rem]">
 		{#if selectedRegion}
-			<div class="rounded-xl border border-[#fde68a] bg-[#fffbeb] p-3">
+			<div class="shrink-0 rounded-xl border border-[#fde68a] bg-[#fffbeb] p-3">
 				<small class="block text-[#b45309]">Đang chọn</small>
 				<strong class="mt-1 block text-lg">{selectedRegion.name}</strong>
 				<div class="mt-1 text-sm text-[#475467]">
@@ -283,10 +425,10 @@
 			placeholder="Tìm theo tên xã/phường…"
 			autocomplete="off"
 			bind:value={searchQuery}
-			class="w-full rounded-xl border border-[#d0d7e2] px-3 py-2.5 text-sm"
+			class="w-full shrink-0 rounded-xl border border-[#d0d7e2] px-3 py-2.5 text-sm"
 		/>
 
-		<div class="flex max-h-[60vh] flex-col gap-1.5 overflow-auto">
+		<div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-auto">
 			{#each filteredRegions as region (region.id)}
 				{@const regionHeat = heat?.get(region.id) ?? null}
 				<button
@@ -327,7 +469,7 @@
 			{/each}
 		</div>
 
-		<p class="text-xs text-[#667085]">
+		<p class="shrink-0 text-xs text-[#667085]">
 			Các vùng bấm được bo theo biên hiển thị trên ảnh. Bấm vào từng vùng để chọn.
 		</p>
 	</aside>
