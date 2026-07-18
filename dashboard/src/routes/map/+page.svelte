@@ -96,9 +96,10 @@
 		</div>
 	</div>
 
-	<h1 class="mb-3 text-2xl font-semibold tracking-tight text-gray-900">
+	<h1 class="mb-1 text-2xl font-semibold tracking-tight text-gray-900">
 		Bản đồ Điện Biên
 	</h1>
+	<p class="mb-3 text-sm text-gray-500">Bản đồ tỉnh Điện Biên</p>
 
 	<DienBienMap
 		regions={HOTSPOT_REGIONS}
