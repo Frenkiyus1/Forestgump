@@ -121,7 +121,10 @@ trong bản MVP (xem mục 7).
   biến vào template đã kiểm duyệt trước, vì nội dung cảnh báo an toàn tính
   mạng cần nhất quán, không hợp để mô hình ngôn ngữ tự sinh ngẫu nhiên.
 - **`/api/mock-notify`** chỉ mô phỏng payload (Zalo/SMS/loa công cộng) —
-  chưa tích hợp Zalo OA/SMS gateway/loa thật.
+  chưa tích hợp Zalo OA/loa thật. Riêng SMS đã có client gọi gateway thật
+  (`POST /api/notify/sms`, `backend/src/sms-client.ts`) nhưng
+  `SMS_GATEWAY_URL`/`SMS_API_KEY` để trống mặc định — chưa nối gateway/API
+  key thật, gọi sẽ trả 503 tới khi cấu hình (xem `.env.example`).
 
 ## 6. Vì sao không có DB/MQTT
 
@@ -143,8 +146,10 @@ sẵn, hoặc cần dữ liệu chưa có:
   dùng chung (giảm nguy cơ lệch ngưỡng giữa backend và AI Engine).
 - Event bus (`ForecastUpdated`/`WarningGenerated`/`BulletinCreated`) thay vì
   gọi trực tiếp giữa các bước.
-- Tích hợp thật cho kênh cảnh báo: Zalo OA, SMS gateway, loa công cộng
-  (hiện chỉ mô phỏng payload qua `/api/mock-notify`).
+- Tích hợp thật cho kênh cảnh báo: Zalo OA, loa công cộng (hiện chỉ mô
+  phỏng payload qua `/api/mock-notify`); SMS đã có client thật
+  (`POST /api/notify/sms`) nhưng còn thiếu cấu hình gateway/API key +
+  danh sách thuê bao thật.
 - Firmware/IoT thật (ESP32 + cảm biến) nếu dự án mở rộng sang đo đạc tại
   hiện trường thay vì chỉ dùng dự báo thời tiết công khai.
 

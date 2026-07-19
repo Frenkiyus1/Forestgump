@@ -61,6 +61,16 @@ export const chatRequestSchema = z.strictObject({
 });
 
 /**
+ * Body của POST /api/notify/sms — gửi SMS cảnh báo thật cho 1 số điện thoại.
+ * `to` do caller truyền mỗi request (KHÔNG đọc từ danh sách thuê bao cố định
+ * trong code/env) — chấp nhận số VN có/không mã vùng quốc tế.
+ */
+export const sendSmsRequestSchema = z.strictObject({
+  to: z.string().regex(/^\+?[0-9]{8,15}$/, 'Số điện thoại không hợp lệ'),
+  location: z.string().min(1),
+});
+
+/**
  * Phản hồi dự báo 7 ngày từ Open-Meteo (endpoint /v1/forecast).
  * Dùng z.object (KHÔNG strict) vì đây là API bên thứ 3 ta không kiểm soát —
  * Open-Meteo có thể thêm field mới bất kỳ lúc nào, strictObject sẽ vỡ khi đó.

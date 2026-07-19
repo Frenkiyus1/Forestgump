@@ -7,6 +7,7 @@ import {
   bulletinsQuerySchema,
   mockNotifyQuerySchema,
   chatRequestSchema,
+  sendSmsRequestSchema,
   type HazardRisk,
 } from './schemas.js';
 import { fetchAllLocationsForecast, fetchLocationForecast } from './weather-ingest.js';
@@ -14,6 +15,7 @@ import { DIEN_BIEN_LOCATIONS, findLocationByCode, type DienBienLocation } from '
 import { assessRisk } from './ai-risk-client.js';
 import { fetchNchmfReference, type NchmfReference } from './nchmf-reference.js';
 import { askGemini, GeminiNotConfiguredError } from './gemini-client.js';
+import { sendSms, SmsNotConfiguredError } from './sms-client.js';
 
 const app = express();
 
@@ -293,6 +295,50 @@ app.get('/api/mock-notify', async (req: Request, res: Response) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[API] /api/mock-notify failed:', message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/notify/sms - gửi SMS cảnh báo THẬT (khác /api/mock-notify) cho
+// cảnh báo đang hoạt động (khác 'green') nguy hiểm nhất của 1 địa điểm, tới
+// số điện thoại `to` do caller truyền trong body — KHÔNG đọc từ danh sách
+// thuê bao cố định trong code/env. Trả 503 nếu SMS_GATEWAY_URL/SMS_API_KEY
+// chưa cấu hình (mặc định để trống, xem sms-client.ts + .env.example).
+app.post('/api/notify/sms', async (req: Request, res: Response) => {
+  const parsed = sendSmsRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid body' });
+  }
+
+  const location = findLocationByCode(parsed.data.location);
+  if (!location) {
+    return res.status(404).json({ error: `Location "${parsed.data.location}" not found` });
+  }
+
+  try {
+    const [forecast] = await buildDienBienForecast([location]);
+    if (!forecast) {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    const activeHazards = forecast.days
+      .flatMap((day) => day.hazards.filter((h) => h.alert_level !== 'green').map((h) => ({ day, hazard: h })))
+      .sort((a, b) => DIENBIEN_ALERT_SEVERITY[b.hazard.alert_level] - DIENBIEN_ALERT_SEVERITY[a.hazard.alert_level]);
+
+    const top = activeHazards[0];
+    if (!top) {
+      return res.json({ sent: false, reason: 'no_active_alert' });
+    }
+
+    const { day, hazard } = top;
+    const result = await sendSms(parsed.data.to, day.bulletin.slice(0, 160));
+    res.json({ sent: true, to: result.to, message: result.message, hazard: hazard.hazard, alertLevel: hazard.alert_level });
+  } catch (err) {
+    if (err instanceof SmsNotConfiguredError) {
+      res.status(503).json({ error: 'SMS chưa được cấu hình (thiếu SMS_GATEWAY_URL/SMS_API_KEY trên backend)' });
+      return;
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[API] /api/notify/sms failed:', message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
