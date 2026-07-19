@@ -71,14 +71,17 @@ export const MOCK_BULLETINS: Record<string, Record<Bulletin['lang'], Bulletin>> 
 			action: 'Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
 			lang: 'vi'
 		},
+		// DRAFT — chưa qua người bản ngữ rà soát (REVIEWED=false, i18n-bulletin.ts).
+		// Đây là fixture khi thiếu dữ liệu alert có cấu trúc để neo; đường chính
+		// (bulletin.ts::generateBulletin) render trực tiếp từ i18n-bulletin.ts.
 		thai: {
-			headline: '[Cần dịch tiếng Thái] Không có cảnh báo — thời tiết ổn định',
-			action: '[Cần dịch tiếng Thái] Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
+			headline: 'Bấu mi anh tăn — pha kát p’ốc đi',
+			action: 'Nhòm khảu pha kát băng vằn, nhăng bấu tọng hẹt xăng.',
 			lang: 'thai'
 		},
 		hmong: {
-			headline: '[Cần dịch tiếng Hmông] Không có cảnh báo — thời tiết ổn định',
-			action: '[Cần dịch tiếng Hmông] Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
+			headline: 'Tsis muaj ceeb toom — huab cua zoo',
+			action: 'Saib xyuas huab cua txhua hnub, tsis tas ua dab tsi tam sim no.',
 			lang: 'hmong'
 		}
 	},
@@ -88,14 +91,17 @@ export const MOCK_BULLETINS: Record<string, Record<Bulletin['lang'], Bulletin>> 
 			action: 'Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
 			lang: 'vi'
 		},
+		// DRAFT — chưa qua người bản ngữ rà soát (REVIEWED=false, i18n-bulletin.ts).
+		// Đây là fixture khi thiếu dữ liệu alert có cấu trúc để neo; đường chính
+		// (bulletin.ts::generateBulletin) render trực tiếp từ i18n-bulletin.ts.
 		thai: {
-			headline: '[Cần dịch tiếng Thái] Không có cảnh báo — thời tiết ổn định',
-			action: '[Cần dịch tiếng Thái] Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
+			headline: 'Bấu mi anh tăn — pha kát p’ốc đi',
+			action: 'Nhòm khảu pha kát băng vằn, nhăng bấu tọng hẹt xăng.',
 			lang: 'thai'
 		},
 		hmong: {
-			headline: '[Cần dịch tiếng Hmông] Không có cảnh báo — thời tiết ổn định',
-			action: '[Cần dịch tiếng Hmông] Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
+			headline: 'Tsis muaj ceeb toom — huab cua zoo',
+			action: 'Saib xyuas huab cua txhua hnub, tsis tas ua dab tsi tam sim no.',
 			lang: 'hmong'
 		}
 	},
@@ -105,14 +111,17 @@ export const MOCK_BULLETINS: Record<string, Record<Bulletin['lang'], Bulletin>> 
 			action: 'Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
 			lang: 'vi'
 		},
+		// DRAFT — chưa qua người bản ngữ rà soát (REVIEWED=false, i18n-bulletin.ts).
+		// Đây là fixture khi thiếu dữ liệu alert có cấu trúc để neo; đường chính
+		// (bulletin.ts::generateBulletin) render trực tiếp từ i18n-bulletin.ts.
 		thai: {
-			headline: '[Cần dịch tiếng Thái] Không có cảnh báo — thời tiết ổn định',
-			action: '[Cần dịch tiếng Thái] Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
+			headline: 'Bấu mi anh tăn — pha kát p’ốc đi',
+			action: 'Nhòm khảu pha kát băng vằn, nhăng bấu tọng hẹt xăng.',
 			lang: 'thai'
 		},
 		hmong: {
-			headline: '[Cần dịch tiếng Hmông] Không có cảnh báo — thời tiết ổn định',
-			action: '[Cần dịch tiếng Hmông] Theo dõi dự báo hằng ngày, chưa cần hành động đặc biệt.',
+			headline: 'Tsis muaj ceeb toom — huab cua zoo',
+			action: 'Saib xyuas huab cua txhua hnub, tsis tas ua dab tsi tam sim no.',
 			lang: 'hmong'
 		}
 	}

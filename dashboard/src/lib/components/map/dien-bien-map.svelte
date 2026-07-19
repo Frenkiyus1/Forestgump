@@ -117,14 +117,15 @@
 		return `rgba(${r},${g},${b},${alpha})`;
 	}
 
-	// Kẹp vị trí tooltip pin trong biên [MIN, MAX]% để không tràn ra ngoài card
-	// khi vùng đang trỏ nằm sát rìa trên/trái/phải ảnh bản đồ.
-	const PIN_EDGE_MARGIN_PCT = 8;
-	function clampPct(value: number): number {
-		return Math.min(100 - PIN_EDGE_MARGIN_PCT, Math.max(PIN_EDGE_MARGIN_PCT, value));
-	}
-	const pinLeftPct = $derived(pinPos ? clampPct((pinPos.x / 926) * 100) : 0);
-	const pinTopPct = $derived(pinPos ? clampPct((pinPos.y / 1178) * 100) : 0);
+	// Tooltip pin neo theo góc (left/top HOẶC right/bottom) tuỳ vùng đang trỏ
+	// nằm nửa nào của bản đồ — luôn "mở" về phía tâm bản đồ, không tràn ra
+	// ngoài card (card có overflow-hidden để cắt ảnh khi zoom). Chỉ dùng %
+	// đơn thuần (như trước) sẽ bị cắt/che mất ở rìa phải/dưới vì tooltip neo
+	// bằng góc trên-trái nhưng lại rộng tới 260px.
+	const pinXPct = $derived(pinPos ? (pinPos.x / 926) * 100 : 0);
+	const pinYPct = $derived(pinPos ? (pinPos.y / 1178) * 100 : 0);
+	const pinAnchorRight = $derived(pinXPct > 55);
+	const pinAnchorBottom = $derived(pinYPct > 60);
 </script>
 
 <div class="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_minmax(0,26rem)]">
@@ -192,8 +193,8 @@
 
 				{#if pinPos && pinRegion}
 					<div
-						class="pointer-events-none absolute z-10"
-						style="left: {pinLeftPct}%; top: {pinTopPct}%;"
+						class="pointer-events-none absolute z-30"
+						style={`${pinAnchorRight ? `right: ${100 - pinXPct}%;` : `left: ${pinXPct}%;`} ${pinAnchorBottom ? `bottom: ${100 - pinYPct}%;` : `top: ${pinYPct}%;`}`}
 					>
 					<div
 						class="min-w-[160px] max-w-[260px] rounded-xl bg-slate-900/95 px-3 py-2 text-[15px] text-white shadow-xl"
