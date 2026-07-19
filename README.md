@@ -1,7 +1,7 @@
 # Forestgump — Cảnh báo thiên tai sớm Điện Biên
 
-Hệ thống cảnh báo sớm 3 loại thiên tai tại Điện Biên: **mưa lớn/lũ quét**,
-**rét đậm/rét hại**, **sương mù dày**. Lấy dự báo thời tiết từ Open-Meteo
+Hệ thống cảnh báo sớm 4 loại thiên tai tại Điện Biên: **mưa lớn/lũ quét**,
+**mưa đá**, **sạt lở đất**, **sương mù dày**. Lấy dự báo thời tiết từ Open-Meteo
 (nguồn chính, fallback OpenWeatherMap), đánh giá rủi ro bằng rule engine
 (ngưỡng nghiệp vụ đã xác nhận, không phải ML), sinh bản tin cảnh báo bằng
 LLM (Gemini) neo vào chính đánh giá rủi ro đó — tự fallback template cố
@@ -61,6 +61,24 @@ cd dashboard && pnpm install && pnpm dev   # dashboard (:5173)
 ```
 
 Mở **http://localhost:5173**.
+
+## Kiểm thử (test)
+
+```bash
+# AI Engine (Python) — rule engine, bulletin, 3 nhánh ML
+cd ai_engine && python -m pytest -q            # 57 passed
+
+# Backend (Node) — đồng bộ ngưỡng cảnh báo với ai_engine/thresholds.py
+cd backend && npm test                         # alert-dienbien.test.ts
+
+# Dashboard (SvelteKit) — client API + adapter
+cd dashboard && pnpm test                       # src/lib/api.test.ts
+```
+
+Bộ test `ai_engine` khoá chặt: ngưỡng `thresholds.py` khớp
+`backend/src/alert-dienbien.ts`, bản tin fallback template khi thiếu LLM, và
+cả 3 nhánh ML không bao giờ trả lỗi 500 khi chưa có model (fallback rule
+engine / mock / csv_baseline).
 
 ## Vận hành self-host (Quick Tunnel)
 

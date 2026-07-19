@@ -65,7 +65,7 @@ def evaluate(n_samples: int) -> dict:
     ]
 
     # 1 lượt duy nhất qua toàn bộ mẫu: tính nhãn+score rule engine (nguồn tham
-    # chiếu) và dự đoán XGBoost cho cả 3 hiểm hoạ cùng lúc, tránh gọi
+    # chiếu) và dự đoán XGBoost cho cả 4 hiểm hoạ cùng lúc, tránh gọi
     # compute_risk() lặp lại nhiều lần cho cùng 1 mẫu.
     true_labels: dict[Hazard, list[str]] = {hazard: [] for hazard in HAZARDS}
     true_scores: dict[Hazard, list[float]] = {hazard: [] for hazard in HAZARDS}

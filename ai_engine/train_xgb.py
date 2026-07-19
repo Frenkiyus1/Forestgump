@@ -1,4 +1,4 @@
-"""Huấn luyện 3 model XGBoost (rét đậm/rét hại, mưa lớn/lũ quét, sương mù)
+"""Huấn luyện 4 model XGBoost (mưa đá, sạt lở đất, mưa lớn/lũ quét, sương mù)
 cho AI Engine.
 
 VÌ SAO TRAIN TRÊN DỮ LIỆU TỔNG HỢP: dự án CHƯA có CSDL lịch sử thiên tai
@@ -39,7 +39,7 @@ try:
 except (AttributeError, ValueError):
     pass
 
-HAZARDS: list[Hazard] = ["cold_damage", "heavy_rain_flood", "fog"]
+HAZARDS: list[Hazard] = ["hail", "landslide", "heavy_rain_flood", "fog"]
 TERRAINS: list[Terrain] = ["thung_lung", "nui_cao", "ven_suoi"]
 
 RANDOM_SEED = 42
@@ -70,6 +70,9 @@ def sample_scenario(rng: np.random.Generator) -> tuple[ForecastInput, Terrain]:
 
     # Nhóm trường hourly có/không CÙNG NHAU (~85% có) — khớp thực tế pipeline:
     # nguồn Open-Meteo cung cấp đủ, nguồn dự phòng OpenWeatherMap thiếu hết.
+    # Nhóm này gồm cả đầu vào mưa đá (CAPE/mực đóng băng/mưa đối lưu) và sạt
+    # lở đất (mưa 3 ngày/độ ẩm đất tầng rễ) — thiếu thì rule engine trả green
+    # "chưa đánh giá được", model học đúng hành vi đó qua NaN.
     has_hourly = rng.random() < 0.85
     if has_hourly:
         rain_12h = float(rng.uniform(0.3, 0.7) * precipitation)
@@ -84,9 +87,30 @@ def sample_scenario(rng: np.random.Generator) -> tuple[ForecastInput, Terrain]:
         humidity_max = float(rng.uniform(humidity, 100.0))
         wind_gusts = float(wind_speed * rng.uniform(1.0, 2.5))
         soil_moisture = float(rng.uniform(0.02, 0.55))
+        # Mưa đá: 50% CAPE thấp 0-1000 (mịn quanh ngưỡng yếu 500), còn lại
+        # 0-4000 phủ ngưỡng vừa 1500 / mạnh 2500. Mực đóng băng 2500-5500m
+        # phủ 2 ngưỡng 3500/4500m; 30% mưa đối lưu 0-2mm mịn quanh gate 1mm.
+        if rng.random() < 0.5:
+            cape = float(rng.uniform(0.0, 1000.0))
+        else:
+            cape = float(rng.uniform(0.0, 4000.0))
+        freezing_level = float(rng.uniform(2500.0, 5500.0))
+        if rng.random() < 0.3:
+            showers = float(rng.uniform(0.0, 2.0))
+        else:
+            showers = float(rng.uniform(0.0, 50.0))
+        # Sạt lở: 50% mưa 3 ngày 0-150mm (mịn quanh ngưỡng vàng 100mm), còn
+        # lại 0-600mm phủ ngưỡng cam 200 / đỏ 350mm. Độ ẩm đất tầng rễ
+        # 0.05-0.55 phủ 2 ngưỡng 0.25/0.35 m³/m³.
+        if rng.random() < 0.5:
+            rain_3d = float(rng.uniform(0.0, 150.0))
+        else:
+            rain_3d = float(rng.uniform(0.0, 600.0))
+        soil_moisture_root = float(rng.uniform(0.05, 0.55))
     else:
         rain_12h = rain_1h = visibility = None
         dew_spread_min = humidity_max = wind_gusts = soil_moisture = None
+        cape = freezing_level = showers = rain_3d = soil_moisture_root = None
 
     forecast = ForecastInput(
         date="2026-01-01",
@@ -103,6 +127,11 @@ def sample_scenario(rng: np.random.Generator) -> tuple[ForecastInput, Terrain]:
         humidity_max_pct=round(humidity_max, 2) if humidity_max is not None else None,
         wind_gusts_kmh=round(wind_gusts, 2) if wind_gusts is not None else None,
         soil_moisture_0_1=round(soil_moisture, 3) if soil_moisture is not None else None,
+        cape_max_jkg=round(cape, 1) if cape is not None else None,
+        freezing_level_min_m=round(freezing_level, 1) if freezing_level is not None else None,
+        showers_sum_mm=round(showers, 2) if showers is not None else None,
+        soil_moisture_9_to_27cm=round(soil_moisture_root, 3) if soil_moisture_root is not None else None,
+        rain_3d_mm=round(rain_3d, 2) if rain_3d is not None else None,
     )
     terrain: Terrain = TERRAINS[int(rng.integers(0, len(TERRAINS)))]
     return forecast, terrain

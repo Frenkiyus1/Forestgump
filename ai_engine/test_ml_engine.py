@@ -24,11 +24,13 @@ FORECAST = ForecastInput(
 
 
 class TestAssessRiskMl(unittest.TestCase):
-    def test_returns_3_hazards(self):
+    def test_returns_4_hazards(self):
         risk = assess_risk_ml(LOCATION, FORECAST)
         self.assertEqual(risk.location_code, LOCATION.code)
         self.assertEqual(risk.date, FORECAST.date)
-        self.assertEqual({h.hazard for h in risk.hazards}, {"cold_damage", "heavy_rain_flood", "fog"})
+        self.assertEqual(
+            {h.hazard for h in risk.hazards}, {"hail", "landslide", "heavy_rain_flood", "fog"}
+        )
 
     def test_alert_level_and_score_are_valid(self):
         risk = assess_risk_ml(LOCATION, FORECAST)
@@ -57,7 +59,7 @@ class TestAssessRiskMlEndpoint(unittest.TestCase):
         self.assertIn(res.mode, ("model", "fallback_rule_engine"))
         self.assertEqual(res.mode, "model" if is_model_ready() else "fallback_rule_engine")
         self.assertEqual(len(res.days), 1)
-        self.assertEqual(len(res.days[0].risk.hazards), 3)
+        self.assertEqual(len(res.days[0].risk.hazards), 4)
         self.assertTrue(res.days[0].bulletin)  # bulletin không rỗng
 
     def test_endpoint_never_500_on_multi_day(self):

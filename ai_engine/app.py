@@ -117,7 +117,7 @@ def assess_risk_ml_endpoint(data: AssessRiskRequest) -> AssessRiskMlResponse:
     generate_bulletin) — chỉ khác nguồn tính risk. Tự fallback rule engine
     nếu model chưa train/lỗi load (assess_risk_ml không bao giờ raise), nên
     endpoint này cũng không bao giờ lỗi 500; trường `mode` cho biết nguồn
-    thật sự đã dùng cho TOÀN BỘ response (3 model multi-hazard nạp/fallback
+    thật sự đã dùng cho TOÀN BỘ response (4 model multi-hazard nạp/fallback
     cùng lúc, không lệch giữa các ngày/hiểm hoạ)."""
     mode: Literal["model", "fallback_rule_engine"] = "model" if is_model_ready() else "fallback_rule_engine"
     days: list[DayAssessment] = []

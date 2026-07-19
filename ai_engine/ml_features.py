@@ -34,6 +34,11 @@ FEATURE_NAMES: list[str] = [
     "wind_speed_kmh",
     "wind_gusts_kmh",
     "soil_moisture_0_1",
+    "cape_max_jkg",  # năng lượng đối lưu — tín hiệu chính của mưa đá
+    "freezing_level_min_m",  # mực đóng băng thấp nhất — đá dễ rơi tới đất khi thấp
+    "showers_sum_mm",  # mưa đối lưu — gate bằng chứng giông cho mưa đá
+    "soil_moisture_9_to_27cm",  # độ ẩm đất tầng rễ — tín hiệu bão hoà cho sạt lở
+    "rain_3d_mm",  # mưa tích luỹ 3 ngày — tín hiệu chính của sạt lở
     "terrain_thung_lung",
     "terrain_nui_cao",
     "terrain_ven_suoi",
@@ -73,6 +78,11 @@ def build_features(forecast: ForecastInput, terrain: Terrain) -> list[float]:
         forecast.wind_speed_kmh,
         _opt(forecast.wind_gusts_kmh),
         _opt(forecast.soil_moisture_0_1),
+        _opt(forecast.cape_max_jkg),
+        _opt(forecast.freezing_level_min_m),
+        _opt(forecast.showers_sum_mm),
+        _opt(forecast.soil_moisture_9_to_27cm),
+        _opt(forecast.rain_3d_mm),
         1.0 if terrain == "thung_lung" else 0.0,
         1.0 if terrain == "nui_cao" else 0.0,
         1.0 if terrain == "ven_suoi" else 0.0,

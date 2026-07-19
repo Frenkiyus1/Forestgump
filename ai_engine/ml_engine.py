@@ -33,7 +33,7 @@ from risk_engine import (
 from thresholds import AlertLevel, SCORE_ORANGE_MIN, SCORE_RED_MIN, SCORE_YELLOW_MIN
 
 MODELS_DIR = Path(__file__).parent / "models"
-HAZARDS: list[Hazard] = ["cold_damage", "heavy_rain_flood", "fog"]
+HAZARDS: list[Hazard] = ["hail", "landslide", "heavy_rain_flood", "fog"]
 
 # Điểm đại diện (mid-point) của mỗi band alert_level — dùng để quy đổi
 # xác suất lớp (predict_proba) của XGBoost thành risk_score 0-100 liên tục,
@@ -126,7 +126,7 @@ def reload_models() -> ModelRegistry:
 
 
 def is_model_ready() -> bool:
-    """True nếu cả 3 model multi-hazard đã nạp thành công. Dùng bởi
+    """True nếu cả 4 model multi-hazard đã nạp thành công. Dùng bởi
     app.py (route /assess-risk-ml) để báo trường `mode` cho client biết
     response vừa trả có thật sự dùng XGBoost hay đã tự fallback rule engine."""
     return _registry.is_ready

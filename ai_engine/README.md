@@ -111,7 +111,7 @@ dưới đây tương ứng trực tiếp với 1 đoạn code cụ thể trong 
 
 ### 2.1. Train/serve parity (một nguồn build feature duy nhất)
 `ml_features.py::build_features()` là **hàm duy nhất** sinh vector đặc trưng
-18 chiều, được `train_xgb.py` gọi lúc huấn luyện và `ml_engine.py` gọi lúc
+23 chiều, được `train_xgb.py` gọi lúc huấn luyện và `ml_engine.py` gọi lúc
 suy luận. `FEATURE_NAMES` là hằng số cố định thứ tự cột; `ModelRegistry._load()`
 **đối chiếu `metadata.json["feature_names"]` với `FEATURE_NAMES` hiện tại lúc
 khởi động** — nếu lệch (vd. code đổi feature nhưng quên train lại), service
@@ -213,7 +213,7 @@ với seed cố định (`RANDOM_SEED = 42` cho train, `RANDOM_SEED + 1` cho eva
 | `downscale.py` | Hiệu chỉnh nhiệt độ theo cao độ (lapse rate ~0.65°C/100m) + hệ số nguy cơ sương mù theo địa hình | Domain rules |
 | `risk_engine.py` | `compute_risk()` — rule engine chính, nguồn quyết định duy nhất cho `/assess-risk` | **Primary decisioning** |
 | `bulletin.py` / `llm_bulletin.py` | `generate_bulletin()` — LLM (Gemini) neo `RiskAssessment`, fallback template cố định đã kiểm duyệt | **Grounded generation** |
-| `ml_features.py` | `build_features()` — feature engineering dùng chung train/serve, 18 chiều | ML — shared |
+| `ml_features.py` | `build_features()` — feature engineering dùng chung train/serve, 23 chiều | ML — shared |
 | `train_xgb.py` | Sinh dữ liệu tổng hợp (distillation từ rule engine) + train 3 model multi-class | ML — offline training |
 | `ml_engine.py` | `ModelRegistry`, `assess_risk_ml()`, `is_model_ready()` — inference cho 3 hiểm hoạ, tự fallback rule engine, đã nối `POST /assess-risk-ml` | ML — shadow inference |
 | `eval_xgb.py` | Đánh giá accuracy/MAE/confusion matrix trên tập test độc lập | ML — evaluation |
@@ -244,7 +244,7 @@ sequenceDiagram
         TH-->>RE: alert_level từng hiểm hoạ
         RE-->>APP: RiskAssessment{hazards: [4 x HazardRisk]}
         APP->>BU: generate_bulletin(location, risk)
-        BU-->>APP: chuỗi bản tin tiếng Việt (điền template)
+        BU-->>APP: bản tin tiếng Việt (LLM neo vào risk, fallback template)
     end
     APP-->>BE: AssessRiskResponse{location_code, days: [{risk, bulletin}]}
 ```
@@ -283,7 +283,7 @@ python -m unittest test_flood -v      # test feature engineering + endpoint
 
 ## 6. Nhánh ML #2 — Multi-hazard multi-class (đã nối `/assess-risk-ml`, shadow)
 
-### 6.1. Vector đặc trưng (18 chiều, `ml_features.FEATURE_NAMES`)
+### 6.1. Vector đặc trưng (23 chiều, `ml_features.FEATURE_NAMES`)
 
 | # | Đặc trưng | Nguồn | Ghi chú |
 |---|---|---|---|
@@ -294,7 +294,9 @@ python -m unittest test_flood -v      # test feature engineering + endpoint
 | 12 | `visibility_min_m` | forecast (hourly Open-Meteo) | tín hiệu trực tiếp sương mù, WMO |
 | 13-14 | `wind_speed_kmh`, `wind_gusts_kmh` | forecast | |
 | 15 | `soil_moisture_0_1` | forecast | |
-| 16-18 | `terrain_thung_lung`, `terrain_nui_cao`, `terrain_ven_suoi` | one-hot từ `location.terrain` | |
+| 16-18 | `cape_max_jkg`, `freezing_level_min_m`, `showers_sum_mm` | forecast (Open-Meteo) | tín hiệu **mưa đá** (CAPE/mực đóng băng/mưa đối lưu) — NaN nếu nguồn dự phòng |
+| 19-20 | `soil_moisture_9_to_27cm`, `rain_3d_mm` | forecast (Open-Meteo) | tín hiệu **sạt lở** (độ ẩm đất tầng rễ + mưa tích luỹ 3 ngày) — NaN nếu nguồn dự phòng |
+| 21-23 | `terrain_thung_lung`, `terrain_nui_cao`, `terrain_ven_suoi` | one-hot từ `location.terrain` | |
 
 Trường thiếu (nguồn dự phòng không cung cấp hourly) = `NaN` — XGBoost xử lý
 missing value tự nhiên (split hướng mặc định học được lúc train), không cần
@@ -324,14 +326,15 @@ gọi trực tiếp, xem mục 6.5.
 
 ### 6.4. Kết quả đánh giá gần nhất
 
-Train: `n_samples=60000` (`models/metadata.json`, `trained_at=2026-07-18`).
+Train: `n_samples=60000` (`models/metadata.json`, `trained_at=2026-07-19`).
 Eval: tập test 10,000 mẫu, seed độc lập với lúc train.
 
 | Hiểm hoạ | Test accuracy (lúc train) | Accuracy (eval độc lập) | MAE risk_score (thang 0-100) |
 |---|---|---|---|
-| cold_damage | 0.9972 | 0.9999 | 7.25 |
-| heavy_rain_flood | 0.9955 | 0.9975 | 6.21 |
-| fog | 0.9925 | 0.9961 | 10.86 |
+| hail | 0.9968 | 0.9972 | 15.20 |
+| landslide | 0.9970 | 0.9966 | 13.47 |
+| heavy_rain_flood | 0.9959 | 0.9968 | 6.22 |
+| fog | 0.9939 | 0.9948 | 13.68 |
 
 > **Đọc con số này thế nào cho đúng:** accuracy cao (~99%) chỉ chứng minh
 > XGBoost **tái tạo đúng ranh giới quyết định** mà rule engine đã học được từ
@@ -361,11 +364,11 @@ Cùng payload với `/assess-risk` (mục 7), trả về **cùng shape**
       "risk": {
         "location_code": "tua-chua", "date": "2026-07-17",
         "hazards": [
-          {"hazard": "cold_damage", "alert_level": "red", "risk_score": 92.5,
-           "detail": "[XGBoost, agreement với rule engine trên tập test: 99.7%] Xác suất lớp: green=0.00, red=1.00, yellow=0.00."}
+          {"hazard": "heavy_rain_flood", "alert_level": "red", "risk_score": 92.5,
+           "detail": "[XGBoost, agreement với rule engine trên tập test: 99.7%] Xác suất lớp: green=0.00, red=1.00, orange=0.00, yellow=0.00."}
         ]
       },
-      "bulletin": "[Dân/cán bộ xã] CẢNH BÁO RÉT HẠI tại Xã Tủa Chùa ngày 2026-07-17 — nguy hiểm sức khoẻ. ..."
+      "bulletin": "[Dân/cán bộ xã] NGUY HIỂM: LŨ QUÉT tại Xã Tủa Chùa ngày 2026-07-17. Không qua suối/ngầm tràn ..."
     }
   ]
 }
@@ -685,7 +688,8 @@ ai_engine/
 │   ├── dienbien_risk_theo_xa.csv   # Bản sao docs/ — 130 xã, DEM + mưa + risk baseline
 │   └── commune_elevation.json      # Cache độ cao (train_terrain.py --fetch-elevation)
 ├── models/
-│   ├── cold_damage.xgb.json
+│   ├── hail.xgb.json
+│   ├── landslide.xgb.json
 │   ├── heavy_rain_flood.xgb.json
 │   ├── fog.xgb.json
 │   ├── metadata.json       # Versioning: trained_at, feature_names, accuracy
