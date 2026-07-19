@@ -64,6 +64,36 @@
 			stroke-linecap="round"
 		/>
 	</svg>
+{:else if type === 'mua-da'}
+	<!-- Hail: cloud with falling ice pellets -->
+	<svg viewBox="0 0 24 24" fill="none" class={className} aria-hidden="true">
+		<path
+			d="M6 11a4 4 0 0 1 7.6-1.8A3.5 3.5 0 0 1 18 13"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		/>
+		<circle cx="7.5" cy="16.5" r="1.4" fill="currentColor" />
+		<circle cx="16" cy="15.5" r="1.4" fill="currentColor" />
+		<circle cx="12.5" cy="18.5" r="1.4" fill="currentColor" />
+		<circle cx="10" cy="21.5" r="1.4" fill="currentColor" />
+	</svg>
+{:else if type === 'sat-lo'}
+	<!-- Landslide: sloped ground with sliding debris -->
+	<svg viewBox="0 0 24 24" fill="none" class={className} aria-hidden="true">
+		<path
+			d="M3 19 9.5 6l3 5.5M12.5 19 16 10.5l6 8.5"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		/>
+		<path d="M2 19h20" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+		<circle cx="14.5" cy="14.5" r="1.1" fill="currentColor" />
+		<circle cx="17.5" cy="16.5" r="1.1" fill="currentColor" />
+		<circle cx="13" cy="17.3" r="1.1" fill="currentColor" />
+	</svg>
 {:else}
 	<!-- Safe: shield check -->
 	<svg viewBox="0 0 24 24" fill="none" class={className} aria-hidden="true">

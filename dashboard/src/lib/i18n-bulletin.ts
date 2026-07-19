@@ -47,12 +47,24 @@ const THAI: LangPack = {
 		red: 'Anh tăn lai'
 	},
 	hazard: {
+		'mua-da': 'Khảng tók',
+		'sat-lo': 'Đin lồm',
 		'lu-quet': 'Nặm p’a',
 		'bang-gia': 'Nắc kít',
 		'suong-mu': 'Mók tứn'
 	},
 	audience: '[Cốn bản/cán bộ xã]',
 	action: {
+		'mua-da': {
+			yellow: 'Hụ tô liệng, ảu khảu tí bók khi mi khảng tók.',
+			orange: 'Ảu tô liệng, xe khảu hườn kín; nhá dú tang đông khi khảng tók.',
+			red: 'Khảu hườn kín ngay, nhá dú tí tang đông bấu mi thắng khi khảng tók lai.'
+		},
+		'sat-lo': {
+			yellow: 'Nhòm bôl phông núi/đin cao, chuẩn bị tô liệng khửn tế cao.',
+			orange: 'Nhá dú xẩu bôl phông núi khi mưa lai; nhòm vết nứt đin.',
+			red: 'Khửn tế cao ngay, nhá dú xẩu bôl phông núi; hẹp cốn xã chăm dệt.'
+		},
 		'lu-quet': {
 			yellow: 'Nhòm nặm huổi, tứm khoẩng khửn tế cao.',
 			orange: 'Nhá khảm huổi/tho nặm. Nhại khoẩng, tô liệng khửn tế cao.',
@@ -82,12 +94,24 @@ const HMONG: LangPack = {
 		red: 'Txaus ntshai heev'
 	},
 	hazard: {
+		'mua-da': 'Nag lawg',
+		'sat-lo': 'Av qhwb',
 		'lu-quet': 'Dej nyab ceev',
 		'bang-gia': 'No txias daus',
 		'suong-mu': 'Huab tuab'
 	},
 	audience: '[Cov pej xeem/nom tswv xeev]',
 	action: {
+		'mua-da': {
+			yellow: 'Saib cov tsiaj, coj lawv mus rau qhov muaj vov thaum nag lawg.',
+			orange: 'Coj tsiaj thiab tsheb mus rau hauv, tsis txhob nyob qhov qhib thaum nag lawg.',
+			red: 'Mus rau hauv tsev sov tam sim no, tsis txhob nyob qhov qhib thaum nag lawg heev.'
+		},
+		'sat-lo': {
+			yellow: 'Saib sab roob, npaj thauj tsiaj mus rau qhov siab.',
+			orange: 'Tsis txhob nyob ze sab roob thaum nag loj; saib qhov av tawg.',
+			red: 'Mus rau qhov siab tam sim no, tsis txhob nyob ze sab roob; hu rau nom tswv hauv zos.'
+		},
 		'lu-quet': {
 			yellow: 'Saib qhov dej hauv kwj ha, npaj thauj khoom mus rau qhov siab.',
 			orange: 'Tsis txhob hla kwj dej/tus choj dej. Thauj khoom, tsiaj mus rau qhov siab.',

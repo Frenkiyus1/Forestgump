@@ -1,5 +1,5 @@
 export type AlertLevel = 'green' | 'yellow' | 'orange' | 'red';
-export type AlertType = 'lu-quet' | 'bang-gia' | 'suong-mu' | null;
+export type AlertType = 'lu-quet' | 'bang-gia' | 'suong-mu' | 'mua-da' | 'sat-lo' | null;
 
 // --- Dien Bien terrain-anchored hazard forecast (GET /api/dienbien-forecast) ---
 // Khớp backend/src/api.ts (DienBienForecastEntry/DienBienForecastDay) và

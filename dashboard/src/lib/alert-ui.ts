@@ -35,7 +35,9 @@ export const ALERT_HEX: Record<AlertLevel, string> = {
 export const HAZARD_LABEL: Record<Exclude<AlertType, null>, string> = {
 	'lu-quet': 'Lũ quét',
 	'bang-gia': 'Băng giá',
-	'suong-mu': 'Sương mù dày'
+	'suong-mu': 'Sương mù dày',
+	'mua-da': 'Mưa đá',
+	'sat-lo': 'Sạt lở đất'
 };
 
 // TODO(teammate): nguồn ngưỡng thật cho từng loại hình thái nguy hiểm cần lấy từ

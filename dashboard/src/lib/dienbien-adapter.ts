@@ -27,13 +27,10 @@ const LOCATION_ID_TO_CODE: Record<string, string> = {
 
 const ALERT_SEVERITY: Record<AlertLevel, number> = { green: 0, yellow: 1, orange: 2, red: 3 };
 
-// `hail`/`landslide` không có type tương ứng trong hệ AlertType cũ (lu-quet/
-// bang-gia/suong-mu) — map về null, UI legacy (hazard-icon.svelte) tự fallback
-// icon an toàn chung khi type null, không gán nhầm sang loại khác.
 const HAZARD_TO_ALERT_TYPE: Record<DienBienHazard, AlertType> = {
 	heavy_rain_flood: 'lu-quet',
-	hail: null,
-	landslide: null,
+	hail: 'mua-da',
+	landslide: 'sat-lo',
 	fog: 'suong-mu'
 };
 
