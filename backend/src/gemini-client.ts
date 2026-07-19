@@ -1,9 +1,10 @@
 // Client gọi Gemini API (Google AI) cho tính năng hỏi-đáp tự do trong chat
-// widget của Dashboard — CHỈ dùng cho chat phụ trợ, KHÔNG dùng để sinh bản
-// tin cảnh báo chính thức (ai_engine/bulletin.py vẫn dùng template cố định
-// có chủ đích, an toàn tính mạng — xem CLAUDE.md mục 4, không đổi). Câu trả
-// lời luôn được "neo" (grounded) vào dữ liệu forecast/risk thật truyền qua
-// `contextJson` — không để model tự bịa số liệu.
+// widget của Dashboard. Bản tin cảnh báo chính thức (ai_engine/bulletin.py)
+// gọi Gemini RIÊNG, từ phía Python (xem ai_engine/llm_bulletin.py) — không
+// dùng client này — cùng nguyên tắc grounding: neo vào RiskAssessment thật,
+// fallback template khi LLM lỗi/chưa cấu hình (xem CLAUDE.md mục 4). Câu trả
+// lời của client này luôn được "neo" (grounded) vào dữ liệu forecast/risk
+// thật truyền qua `contextJson` — không để model tự bịa số liệu.
 
 import 'dotenv/config';
 

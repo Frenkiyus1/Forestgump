@@ -3,10 +3,12 @@
 Nhận dự báo thời tiết nhiều ngày (từ backend/src/weather-ingest.ts, nguồn
 Open-Meteo/OpenWeatherMap) qua HTTP POST, áp dụng rule engine (risk_engine.py,
 thresholds.py — KHÔNG phải machine learning) để đánh giá rủi ro mưa đá, sạt
-lở đất, mưa lớn/lũ quét, sương mù, rồi sinh bản tin cảnh báo bằng template cố
-định đã kiểm duyệt trước (bulletin.py — CỐ TÌNH KHÔNG dùng LLM tự do sinh
-nội dung an toàn tính mạng). Rule-based nên luôn hoạt động, không có mock
-mode.
+lở đất, mưa lớn/lũ quét, sương mù, rồi sinh bản tin cảnh báo bằng LLM (Gemini,
+bulletin.py + llm_bulletin.py) NEO vào chính RiskAssessment vừa tính — model
+không được bịa hiểm hoạ/số liệu ngoài đó. Chưa cấu hình GEMINI_API_KEY hoặc
+lời gọi LLM lỗi/timeout thì tự fallback về ngân hàng template cố định, nên
+rule engine đánh giá rủi ro vẫn luôn hoạt động, không có mock mode dù LLM có
+sập.
 
 Ngoài ra có 3 nhánh ML chạy SONG SONG, KHÔNG thay thế rule engine:
 - [OPTIONAL/DEMO] /predict-flood-risk dùng XGBoost nhị phân (train_flood.py)

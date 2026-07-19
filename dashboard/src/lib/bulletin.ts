@@ -8,8 +8,9 @@ const MOCK_DELAY_MS = 400;
  * Turn a Forecast (+ chosen language) into a plain-language Bulletin a
  * resident can act on.
  *
- * Tiếng Việt ưu tiên bản tin THẬT do ai_engine sinh (template cố định, xem
- * CLAUDE.md mục 4 — không dùng LLM tự do cho nội dung này), lấy từ
+ * Tiếng Việt ưu tiên bản tin THẬT do ai_engine sinh (LLM Gemini neo vào
+ * RiskAssessment, fallback template cố định nếu LLM lỗi/chưa cấu hình — xem
+ * CLAUDE.md mục 4), lấy từ
  * `forecast.alert.bulletin` (ngày có cảnh báo) hoặc `forecast.daily[0].bulletin`
  * (hôm nay, khi không có cảnh báo nào). Thái/Mông CHƯA có template dịch ở
  * ai_engine (SUPPORTED_LANGS chỉ có "vi") nên vẫn dùng fixture placeholder —

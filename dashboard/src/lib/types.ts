@@ -43,8 +43,9 @@ export type DayForecast = {
 	rainMax1h: number; // mm/h, peak intensity
 	visibilityMin: number; // m
 	humidityMax: number; // %
-	// Bản tin thật do ai_engine sinh cho ngày này (template cố định, xem
-	// CLAUDE.md mục 4) — optional vì fixture mock (mock.ts) không có field này.
+	// Bản tin thật do ai_engine sinh cho ngày này (LLM Gemini, fallback
+	// template — xem CLAUDE.md mục 4) — optional vì fixture mock (mock.ts)
+	// không có field này.
 	bulletin?: string;
 };
 

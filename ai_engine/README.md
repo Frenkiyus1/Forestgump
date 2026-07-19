@@ -60,7 +60,7 @@ flowchart TB
         DS["downscale.py<br/>hiệu chỉnh nhiệt độ theo cao độ<br/>+ hệ số nguy cơ sương mù"]
         RE["risk_engine.py<br/>compute_risk()<br/>rule-based if/threshold"]
         TH["thresholds.py<br/>ngưỡng đã xác nhận nghiệp vụ<br/>(PHẢI khớp alert-dienbien.ts)"]
-        BU["bulletin.py<br/>generate_bulletin()<br/>template cố định, KHÔNG LLM tự do"]
+        BU["bulletin.py<br/>generate_bulletin()<br/>LLM (Gemini) neo RiskAssessment, fallback template"]
         DS --> RE
         TH -.ngưỡng.-> RE
         RE -->|RiskAssessment| BU
@@ -175,15 +175,15 @@ hazard: tên file model, danh sách lớp theo đúng thứ tự mã hoá lúc t
 nào, trên bao nhiêu mẫu, đạt accuracy bao nhiêu" — không cần thêm hệ thống
 MLOps ngoài (MLflow/W&B) cho quy mô MVP hiện tại.
 
-### 2.8. Guardrail rõ ràng cho nội dung sinh tự động
-`bulletin.py` **cố tình không dùng LLM tự do** để sinh nội dung cảnh báo —
-chỉ điền biến (`location_name`, `date`) vào `TEMPLATES` đã kiểm duyệt trước
-theo cặp `(hazard, alert_level)`. Đây là quyết định AI-safety có chủ đích:
-nội dung ảnh hưởng an toàn tính mạng (khuyến nghị hành động khi lũ quét/rét
-hại) cần nhất quán 100%, không chấp nhận rủi ro mô hình ngôn ngữ sinh sai
-lệch hoặc ảo giác (hallucination). Generative AI có chỗ đứng ở lớp khác của
-hệ thống (vd. `chat.ts`/`gemini-client.ts` ở backend cho hỏi-đáp tự do),
-không ở lớp phát cảnh báo.
+### 2.8. Guardrail cho nội dung sinh tự động
+`bulletin.py` gọi LLM (Gemini, `llm_bulletin.py`) để soạn nội dung cảnh
+báo, luôn **neo (grounded)** vào chính `RiskAssessment` vừa tính — prompt
+chỉ cho phép model diễn đạt lại dữ liệu risk truyền vào (hazard,
+alert_level, risk_score, detail), không được bịa hiểm hoạ/địa điểm/số liệu
+ngoài đó. Guardrail độ tin cậy: thiếu `GEMINI_API_KEY` hoặc lời gọi LLM
+lỗi/timeout/rỗng thì tự fallback về `TEMPLATES` (điền biến vào mẫu đã kiểm
+duyệt trước theo cặp `(hazard, alert_level)`) — nội dung ảnh hưởng an toàn
+tính mạng luôn có một đường ra ổn định kể cả khi LLM không khả dụng.
 
 ### 2.9. Shadow deployment — cùng data contract, khác nguồn quyết định
 Nhánh multi-hazard (`ml_engine.assess_risk_ml`) trả về đúng kiểu
@@ -212,7 +212,7 @@ với seed cố định (`RANDOM_SEED = 42` cho train, `RANDOM_SEED + 1` cho eva
 | `thresholds.py` | Ngưỡng cảnh báo đã xác nhận nghiệp vụ (NCHMF / QĐ 18/2021/QĐ-TTg / WMO). **PHẢI khớp** `backend/src/alert-dienbien.ts` | Domain rules |
 | `downscale.py` | Hiệu chỉnh nhiệt độ theo cao độ (lapse rate ~0.65°C/100m) + hệ số nguy cơ sương mù theo địa hình | Domain rules |
 | `risk_engine.py` | `compute_risk()` — rule engine chính, nguồn quyết định duy nhất cho `/assess-risk` | **Primary decisioning** |
-| `bulletin.py` | `generate_bulletin()` — sinh bản tin từ template cố định đã kiểm duyệt | **Guardrailed generation** |
+| `bulletin.py` / `llm_bulletin.py` | `generate_bulletin()` — LLM (Gemini) neo `RiskAssessment`, fallback template cố định đã kiểm duyệt | **Grounded generation** |
 | `ml_features.py` | `build_features()` — feature engineering dùng chung train/serve, 18 chiều | ML — shared |
 | `train_xgb.py` | Sinh dữ liệu tổng hợp (distillation từ rule engine) + train 3 model multi-class | ML — offline training |
 | `ml_engine.py` | `ModelRegistry`, `assess_risk_ml()`, `is_model_ready()` — inference cho 3 hiểm hoạ, tự fallback rule engine, đã nối `POST /assess-risk-ml` | ML — shadow inference |
@@ -624,9 +624,10 @@ thiếu model".
   nghịch nhiệt — sai số lớn hơn khi chênh cao >1000m hoặc đêm mùa đông ở
   lòng chảo (Điện Biên Phủ).
 - `fog_risk_factor()` là heuristic nội bộ dự án, chưa đối chiếu quan trắc.
-- `bulletin.py` cố tình không dùng LLM tự do sinh nội dung an toàn tính
-  mạng — chỉ thêm template mới vào `TEMPLATES` khi cần, không đổi sang
-  generation tự do.
+- `bulletin.py` dùng LLM (Gemini) sinh nội dung, neo vào `RiskAssessment` —
+  khi `GEMINI_API_KEY` chưa cấu hình hoặc Gemini timeout/lỗi, fallback
+  `TEMPLATES` (`llm_bulletin.py`/`bulletin.py`); chưa có kiểm thử độc lập
+  về việc LLM có bám sát dữ liệu risk 100% trong mọi trường hợp edge-case.
 - **`POST /assess-risk-ml` chỉ để demo/so sánh**, tuyệt đối không dùng làm
   nguồn cảnh báo thật (xem mục 6.5) — model phía sau nó chưa được kiểm chứng
   độc lập với rule engine bằng dữ liệu quan trắc thật.

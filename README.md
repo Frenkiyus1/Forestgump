@@ -4,7 +4,8 @@ Hệ thống cảnh báo sớm 3 loại thiên tai tại Điện Biên: **mưa l
 **rét đậm/rét hại**, **sương mù dày**. Lấy dự báo thời tiết từ Open-Meteo
 (nguồn chính, fallback OpenWeatherMap), đánh giá rủi ro bằng rule engine
 (ngưỡng nghiệp vụ đã xác nhận, không phải ML), sinh bản tin cảnh báo bằng
-template cố định, hiển thị trên dashboard web.
+LLM (Gemini) neo vào chính đánh giá rủi ro đó — tự fallback template cố
+định nếu LLM chưa cấu hình/lỗi — hiển thị trên dashboard web.
 
 Bổ sung [THAM KHẢO]: model ML **sạt lở đất + lũ quét theo 130 xã** train từ
 đặc trưng địa hình DEM thật ([docs/dienbien_risk_theo_xa.csv](docs/dienbien_risk_theo_xa.csv))
@@ -23,7 +24,7 @@ Dashboard (SvelteKit)  ──HTTPS──►  Backend (Express)  ──POST /asse
                                          │                                          │
                                          ▼                                          ▼
                               Open-Meteo / OpenWeatherMap                  rule engine + bulletin
-                                   (dự báo thời tiết)                       (template cố định)
+                                   (dự báo thời tiết)                    (LLM, fallback template)
 ```
 
 Không có DB/MQTT — pipeline **pull-based**, tính on-the-fly mỗi request (lý

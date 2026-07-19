@@ -6,8 +6,10 @@ Forestgump là hệ thống cảnh báo sớm 4 loại thiên tai tại Điện 
 lớn/lũ quét**, **mưa đá**, **sạt lở đất**, **sương mù dày**. Hệ thống lấy dự báo
 thời tiết từ Open-Meteo (nguồn chính, có fallback OpenWeatherMap), đánh giá
 rủi ro bằng rule engine (ngưỡng đã xác nhận, không phải ML), sinh bản tin
-cảnh báo bằng template cố định, và hiển thị trên Dashboard web. Kiến trúc
-đầy đủ, giới hạn hệ thống đã biết và roadmap: xem **`docs/architecture.md`**.
+cảnh báo bằng LLM (Gemini) neo vào chính đánh giá rủi ro đó — fallback về
+template cố định nếu LLM chưa cấu hình/lỗi — và hiển thị trên Dashboard web.
+Kiến trúc đầy đủ, giới hạn hệ thống đã biết và roadmap: xem
+**`docs/architecture.md`**.
 
 ## 2. Monorepo Architecture & Tech Stack
 Project gồm 3 block chính:
@@ -26,9 +28,12 @@ Project gồm 3 block chính:
   - *Role:* Nhận dự báo nhiều ngày cho 1 địa điểm, áp dụng ngưỡng cảnh báo
     (`risk_engine.py` + `thresholds.py`, PHẢI khớp
     `backend/src/alert-dienbien.ts`), hiệu chỉnh nhiệt độ theo cao độ
-    (`downscale.py`), sinh bản tin bằng template đã kiểm duyệt trước
-    (`bulletin.py` — **cố tình KHÔNG dùng LLM tự do** cho nội dung an toàn
-    tính mạng). Rule-based nên luôn hoạt động, không có mock mode.
+    (`downscale.py`), sinh bản tin bằng LLM (`bulletin.py` gọi
+    `llm_bulletin.py` — Gemini, NEO vào chính `RiskAssessment` vừa tính,
+    không được bịa hiểm hoạ/số liệu ngoài đó). Thiếu `GEMINI_API_KEY` hoặc
+    lời gọi LLM lỗi/timeout/rỗng -> tự fallback về ngân hàng template cố
+    định (`TEMPLATES` trong `bulletin.py`) — đánh giá rủi ro (rule-based)
+    luôn hoạt động, không có mock mode, kể cả khi LLM sập.
 
 - **/dashboard**: Web user interface.
   - *Tech:* SvelteKit (Svelte 5), TypeScript, TailwindCSS.
@@ -64,9 +69,13 @@ Khi viết code cho project này, PHẢI tuân thủ:
 - **Ngưỡng cảnh báo:** sửa `ai_engine/thresholds.py` PHẢI sửa cả
   `backend/src/alert-dienbien.ts` (và ngược lại) — 2 service riêng biệt,
   không tự đồng bộ hằng số.
-- **Bulletin:** KHÔNG thay `bulletin.py` bằng LLM tự do sinh nội dung —
-  đây là quyết định thiết kế có chủ đích (an toàn tính mạng), chỉ thêm
-  template mới vào `TEMPLATES` khi cần.
+- **Bulletin:** `bulletin.py` gọi LLM (`llm_bulletin.py`, Gemini) để sinh
+  nội dung, LUÔN neo (grounded) vào `RiskAssessment` vừa tính — không được
+  đổi để model tự bịa hiểm hoạ/số liệu ngoài input. `TEMPLATES` trong
+  `bulletin.py` là đường FALLBACK bắt buộc khi thiếu `GEMINI_API_KEY` hoặc
+  LLM lỗi/timeout — PHẢI giữ nguyên (không xoá), vì đó là chỗ dựa duy nhất
+  đảm bảo bản tin an toàn tính mạng vẫn ra được khi LLM sập. Thêm hazard/
+  alert_level mới thì cập nhật cả prompt lẫn `TEMPLATES`.
 
 Quy tắc chung:
 

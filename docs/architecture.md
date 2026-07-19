@@ -30,8 +30,8 @@ Open-Meteo API  ──(lỗi/timeout)──►  OpenWeatherMap (dự phòng)
                             │  RiskAssessment
                             ▼
                        bulletin.py
-              (template cố định, KHÔNG dùng LLM tự do
-               sinh nội dung an toàn tính mạng)
+             (LLM Gemini, NEO vào RiskAssessment —
+           fallback template cố định nếu LLM lỗi/chưa cấu hình)
                             │
                             ▼
         backend/src/api.ts — GET /api/dienbien-forecast
@@ -117,9 +117,12 @@ trong bản MVP (xem mục 7).
 - **Chỉ 3 địa điểm demo**, không phải toàn bộ 45 xã/phường (Open-Meteo dự
   báo theo lưới lat/lon nên mở rộng về mặt kỹ thuật là dễ; giới hạn ở đây
   là để giữ phạm vi demo gọn theo khuyến nghị review).
-- **`bulletin.py` cố tình KHÔNG dùng LLM tự do sinh nội dung** — chỉ điền
-  biến vào template đã kiểm duyệt trước, vì nội dung cảnh báo an toàn tính
-  mạng cần nhất quán, không hợp để mô hình ngôn ngữ tự sinh ngẫu nhiên.
+- **`bulletin.py` dùng LLM (Gemini) sinh nội dung**, NEO vào chính
+  `RiskAssessment` vừa tính (`llm_bulletin.py`) — model chỉ diễn đạt lại dữ
+  liệu risk truyền vào, không được bịa hiểm hoạ/số liệu ngoài đó. Thiếu
+  `GEMINI_API_KEY` hoặc lời gọi LLM lỗi/timeout/rỗng thì tự fallback về
+  ngân hàng template cố định đã kiểm duyệt trước (`TEMPLATES`) — đảm bảo
+  bản tin an toàn tính mạng vẫn ra được kể cả khi LLM không khả dụng.
 - **`/api/mock-notify`** chỉ mô phỏng payload (Zalo/SMS/loa công cộng) —
   chưa tích hợp Zalo OA/loa thật. Riêng SMS đã có client gọi gateway thật
   (`POST /api/notify/sms`, `backend/src/sms-client.ts`) nhưng

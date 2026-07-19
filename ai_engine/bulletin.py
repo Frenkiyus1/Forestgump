@@ -1,10 +1,11 @@
-"""Bộ sinh bản tin cảnh báo từ RiskAssessment — ngân hàng template cố định.
+"""Bộ sinh bản tin cảnh báo từ RiskAssessment.
 
-QUAN TRỌNG: generate_bulletin() CHỈ điền biến số vào template đã kiểm duyệt
-trước trong TEMPLATES bên dưới — KHÔNG dùng LLM tự do sinh nội dung cảnh báo
-an toàn tính mạng. Đây là nguyên tắc bắt buộc: nội dung cảnh báo (đặc biệt
-hành động khuyến nghị khi có nguy cơ lũ quét/rét hại) phải nhất quán và đã
-được rà soát trước, không để mô hình sinh ngẫu nhiên.
+generate_bulletin() ưu tiên gọi LLM (Gemini, xem llm_bulletin.py) để soạn bản
+tin — NEO (grounded) vào chính RiskAssessment vừa tính, model không được bịa
+hiểm hoạ/số liệu ngoài đó. TEMPLATES bên dưới giờ đóng vai trò FALLBACK bắt
+buộc: khi GEMINI_API_KEY chưa cấu hình hoặc lời gọi LLM lỗi/timeout/rỗng,
+generate_bulletin() tự quay về điền biến vào template cố định — đảm bảo AI
+Engine luôn trả lời được kể cả khi LLM không khả dụng.
 
 Hiện chỉ có template tiếng Việt ("vi"). Để chỗ cho tiếng Thái/Mông sau — xem
 SUPPORTED_LANGS và generate_bulletin().
@@ -14,6 +15,7 @@ from __future__ import annotations
 
 from risk_engine import HazardRisk, LocationInput, RiskAssessment
 from thresholds import AlertLevel
+from llm_bulletin import LlmBulletinNotConfiguredError, generate_bulletin_llm
 
 SUPPORTED_LANGS = {"vi"}
 
@@ -137,14 +139,9 @@ def _format_hazard(location: LocationInput, date: str, hazard: HazardRisk) -> st
     return f"[{template['audience']}] {headline} {template['action']}"
 
 
-def generate_bulletin(location: LocationInput, risk: RiskAssessment, lang: str = "vi") -> str:
-    """Sinh bản tin cảnh báo cho 1 ngày từ RiskAssessment, điền biến vào mẫu cố định.
-
-    Gộp tất cả hiểm hoạ KHÔNG ở mức 'green' thành các dòng cảnh báo riêng biệt
-    (mỗi hazard 1 dòng). Nếu mọi hiểm hoạ đều 'green', trả về 1 dòng thông báo
-    bình thường. Không có template dịch sẵn cho `lang` -> fallback về "vi" và
-    log warning, KHÔNG tự bịa bản dịch.
-    """
+def _generate_bulletin_template(location: LocationInput, risk: RiskAssessment, lang: str = "vi") -> str:
+    """Điền biến vào ngân hàng template cố định (đường FALLBACK khi LLM không
+    khả dụng) — logic gốc trước khi có llm_bulletin.py, giữ nguyên hành vi."""
     if lang not in SUPPORTED_LANGS:
         print(f"[BULLETIN] WARNING: chưa có bản dịch cho lang='{lang}', dùng 'vi'.")
         lang = "vi"
@@ -156,3 +153,21 @@ def generate_bulletin(location: LocationInput, risk: RiskAssessment, lang: str =
         return f"[Dân/cán bộ xã] {location.name} ngày {risk.date}: thời tiết bình thường, chưa có cảnh báo."
 
     return "\n".join(messages)
+
+
+def generate_bulletin(location: LocationInput, risk: RiskAssessment, lang: str = "vi") -> str:
+    """Sinh bản tin cảnh báo cho 1 ngày từ RiskAssessment.
+
+    Ưu tiên gọi Gemini (llm_bulletin.generate_bulletin_llm), neo vào chính
+    `risk` vừa tính. Fallback về ngân hàng template cố định
+    (_generate_bulletin_template) khi GEMINI_API_KEY chưa cấu hình hoặc lời
+    gọi LLM lỗi/timeout/rỗng — AI Engine phải luôn trả lời được, không phụ
+    thuộc uptime của Gemini.
+    """
+    try:
+        return generate_bulletin_llm(location, risk, lang)
+    except LlmBulletinNotConfiguredError:
+        return _generate_bulletin_template(location, risk, lang)
+    except Exception as exc:  # noqa: BLE001 - lỗi gọi LLM không được làm sập bản tin cảnh báo
+        print(f"[BULLETIN] WARNING: lỗi gọi LLM ({exc}), fallback template.")
+        return _generate_bulletin_template(location, risk, lang)
